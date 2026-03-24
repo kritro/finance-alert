@@ -104,6 +104,41 @@ def validate_config() -> bool:
 
 
 # ──────────────────────────────────────────────
+# Trump Truth Social digest
+# ──────────────────────────────────────────────
+
+def _format_trump_digest(posts: list) -> str:
+    """Formaterer en oppsummering av alle Trumps poster i dag."""
+    if not posts:
+        return ""
+
+    lines = [
+        f"🇺🇸 TRUMP TRUTH SOCIAL – {len(posts)} nye poster i dag",
+        "",
+    ]
+
+    for i, p in enumerate(posts, 1):
+        # Bruk title, men klipp til 200 tegn
+        text = p.title.strip()
+        if not text or text.startswith("[No Title]"):
+            text = p.summary.strip()
+        if not text:
+            text = "(bilde/video uten tekst)"
+        # Fjern HTML-rester
+        import re
+        text = re.sub(r"<[^>]+>", "", text).strip()
+        if len(text) > 200:
+            text = text[:200] + "…"
+
+        time_str = p.published.strftime("%H:%M") if p.published else ""
+        lines.append(f"{i}. [{time_str}] {text}")
+        lines.append("")
+
+    lines.append("🔗 https://www.trumpstruth.org")
+    return "\n".join(lines)
+
+
+# ──────────────────────────────────────────────
 # En enkelt polling-kjøring
 # ──────────────────────────────────────────────
 
@@ -138,8 +173,36 @@ def run_once(seen, prune_every: int = 20, _run_count: list = [0]) -> int:
     except Exception as e:
         logger.error(f"Prissjekk feilet: {e}")
 
-    # 1. Hent artikler
-    articles = fetch_all(include_nitter=INCLUDE_NITTER)
+    # 1. Hent artikler + Trump-poster
+    articles, trump_today = fetch_all(include_nitter=INCLUDE_NITTER)
+
+    # ── Trump Truth Social ──
+    # Oljerelevante poster → varsel som vanlig
+    # Alle dagens poster → daglig oppsummering
+    try:
+        new_trump = [t for t in trump_today if not seen.has_seen(t.url)]
+        if new_trump:
+            from filter import filter_articles as _filter, score_article
+            # Send oljerelevante Trump-poster som vanlige varsler
+            trump_scored = _filter(new_trump, threshold=SCORE_THRESHOLD)
+            for ts in trump_scored:
+                from telegram import send_alert
+                if send_alert(ts, TELEGRAM_TOKEN, TELEGRAM_CHAT_ID):
+                    sent += 1
+
+            # Send oppsummering av ALLE nye Trump-poster (uavhengig av score)
+            trump_summary = _format_trump_digest(new_trump)
+            if trump_summary:
+                _api_call(TELEGRAM_TOKEN, "sendMessage", {
+                    "chat_id": TELEGRAM_CHAT_ID,
+                    "text": trump_summary,
+                })
+
+            seen.mark_seen_batch([t.url for t in new_trump])
+    except Exception as e:
+        logger.error(f"Trump-sjekk feilet: {e}")
+
+    # 2. Hent nyhetsartikler
     if not articles:
         logger.warning("Ingen artikler hentet denne kjøringen")
         return sent

@@ -60,6 +60,12 @@ RSS_FEEDS = {
 }
 
 # ──────────────────────────────────────────────
+# Trump Truth Social – filtreres separat
+# Kun dagens poster hentes, og kjøres gjennom oljefilteret
+# ──────────────────────────────────────────────
+TRUTH_SOCIAL_FEED = "https://www.trumpstruth.org/feed"
+
+# ──────────────────────────────────────────────
 # Nitter RSS – Twitter/X uten API-nøkkel
 # Søker på sentrale hashtags og kontoer
 # Prøver flere instanser – den første som svarer brukes
@@ -187,6 +193,18 @@ def fetch_nitter(timeout_seconds: int = 8) -> list[Article]:
     return articles
 
 
+def fetch_trump_today() -> list[Article]:
+    """
+    Henter Trumps Truth Social-poster fra i dag.
+    Returnerer kun poster publisert i dag (UTC).
+    """
+    articles = _parse_feed(TRUTH_SOCIAL_FEED, "Trump Truth Social")
+    today = datetime.utcnow().date()
+    todays = [a for a in articles if a.published and a.published.date() == today]
+    logger.info(f"Trump Truth Social: {len(todays)} poster fra i dag (av {len(articles)} totalt)")
+    return todays
+
+
 def fetch_all_rss() -> list[Article]:
     """Henter alle RSS-feeds parallelt."""
     import concurrent.futures
@@ -207,17 +225,20 @@ def fetch_all_rss() -> list[Article]:
     return all_articles
 
 
-def fetch_all(include_nitter: bool = True) -> list[Article]:
+def fetch_all(include_nitter: bool = True) -> tuple[list[Article], list[Article]]:
     """
-    Henter fra alle kilder (RSS + valgfritt Nitter).
-    Returnerer dedupliserte artikler (basert på URL).
+    Henter fra alle kilder (RSS + valgfritt Nitter + Trump Truth Social).
+    Returnerer (alle_artikler, trump_poster_i_dag) – begge deduplisert.
     """
     articles = fetch_all_rss()
 
     if include_nitter:
         articles.extend(fetch_nitter())
 
-    # Dedupliser på URL
+    # Trump Truth Social – alltid hentet separat
+    trump_today = fetch_trump_today()
+
+    # Dedupliser hovedartikler på URL
     seen_urls: set[str] = set()
     unique: list[Article] = []
     for a in articles:
@@ -225,5 +246,5 @@ def fetch_all(include_nitter: bool = True) -> list[Article]:
             seen_urls.add(a.url)
             unique.append(a)
 
-    logger.info(f"Hentet {len(unique)} unike artikler fra alle kilder")
-    return unique
+    logger.info(f"Hentet {len(unique)} unike artikler + {len(trump_today)} Trump-poster fra i dag")
+    return unique, trump_today
