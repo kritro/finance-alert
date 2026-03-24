@@ -24,26 +24,42 @@ from datetime import datetime
 # Konfigurasjon (leses fra miljøvariabler)
 # ──────────────────────────────────────────────
 
-TELEGRAM_TOKEN: str = os.getenv("TELEGRAM_TOKEN", "")
-TELEGRAM_CHAT_ID: str = os.getenv("TELEGRAM_CHAT_ID", "")
+TELEGRAM_TOKEN: str = ""
+TELEGRAM_CHAT_ID: str = ""
 
 # Hvor ofte vi sjekker (minutter)
-POLL_INTERVAL_MINUTES: int = int(os.getenv("POLL_INTERVAL_MINUTES", "5"))
+POLL_INTERVAL_MINUTES: int = 5
 
 # Score-terskel for varsler (0–100)
-SCORE_THRESHOLD: int = int(os.getenv("SCORE_THRESHOLD", "40"))
+SCORE_THRESHOLD: int = 40
 
 # Prisendring-terskel i USD (varsler ved ±denne endringen)
-PRICE_ALERT_THRESHOLD: float = float(os.getenv("PRICE_ALERT_THRESHOLD", "3.0"))
+PRICE_ALERT_THRESHOLD: float = 3.0
 
 # Maks varsler per kjøring (forhindrer spam ved oppstart)
-MAX_ALERTS_PER_RUN: int = int(os.getenv("MAX_ALERTS_PER_RUN", "8"))
+MAX_ALERTS_PER_RUN: int = 8
 
 # Om Nitter (Twitter) skal inkluderes
-INCLUDE_NITTER: bool = os.getenv("INCLUDE_NITTER", "true").lower() == "true"
+INCLUDE_NITTER: bool = True
 
 # Debug-modus: vis scoring for alle artikler
-DEBUG_SCORING: bool = os.getenv("DEBUG_SCORING", "false").lower() == "true"
+DEBUG_SCORING: bool = False
+
+
+def load_config():
+    """Laster konfig fra miljøvariabler (kjøres ved oppstart, ikke ved import)."""
+    global TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, POLL_INTERVAL_MINUTES
+    global SCORE_THRESHOLD, PRICE_ALERT_THRESHOLD, MAX_ALERTS_PER_RUN
+    global INCLUDE_NITTER, DEBUG_SCORING
+
+    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+    POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "5"))
+    SCORE_THRESHOLD = int(os.getenv("SCORE_THRESHOLD", "40"))
+    PRICE_ALERT_THRESHOLD = float(os.getenv("PRICE_ALERT_THRESHOLD", "3.0"))
+    MAX_ALERTS_PER_RUN = int(os.getenv("MAX_ALERTS_PER_RUN", "8"))
+    INCLUDE_NITTER = os.getenv("INCLUDE_NITTER", "true").lower() == "true"
+    DEBUG_SCORING = os.getenv("DEBUG_SCORING", "false").lower() == "true"
 
 
 # ──────────────────────────────────────────────
@@ -170,6 +186,8 @@ def run_once(seen, prune_every: int = 20, _run_count: list = [0]) -> int:
 def main() -> None:
     from telegram import get_bot_info, send_startup_message
     from seen import get_store
+
+    load_config()
 
     logger.info("=" * 60)
     logger.info("  Oljepris-varsel-bot starter")
