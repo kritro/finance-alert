@@ -1,13 +1,7 @@
-# railway.toml – Railway deploy-konfigurasjon
-# Dokumentasjon: https://docs.railway.app/reference/config-as-code
-
 [build]
-builder = "NIXPACKS"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "python main.py"
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5
-
-# Helse-sjekk er ikke nødvendig for en bakgrunnsprosess uten HTTP-server
-# healthcheckPath = "/"
