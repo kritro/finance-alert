@@ -52,6 +52,16 @@ def load_config():
     global SCORE_THRESHOLD, PRICE_ALERT_THRESHOLD, MAX_ALERTS_PER_RUN
     global INCLUDE_NITTER, DEBUG_SCORING
 
+    # Debug: dump alle env vars
+    logger.info("=== ALLE MILJØVARIABLER ===")
+    for key in sorted(os.environ.keys()):
+        val = os.environ[key]
+        if len(val) > 20:
+            logger.info(f"  {key} = {val[:10]}... (len={len(val)})")
+        else:
+            logger.info(f"  {key} = {val}")
+    logger.info("=== SLUTT MILJØVARIABLER ===")
+
     TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
     TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
     POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "5"))
