@@ -1,7 +1,7 @@
 """
 main.py – Hovedloop for oljepris-varsel-boten.
 
-Kjører hvert POLL_INTERVAL_MINUTES minutt og:
+Kjører hvert POLL_INTERVAL_SECONDS minutt og:
   1. Henter artikler fra alle RSS-feeds (og Nitter)
   2. Filtrerer på oljeprisrelevans
   3. Sender varsler for nye, relevante artikler
@@ -28,7 +28,7 @@ TELEGRAM_TOKEN: str = ""
 TELEGRAM_CHAT_ID: str = ""
 
 # Hvor ofte vi sjekker (minutter)
-POLL_INTERVAL_MINUTES: int = 5
+POLL_INTERVAL_SECONDS: int = 30
 
 # Score-terskel for varsler (0–100)
 SCORE_THRESHOLD: int = 40
@@ -48,25 +48,18 @@ DEBUG_SCORING: bool = False
 
 def load_config():
     """Laster konfig."""
-    global TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, POLL_INTERVAL_MINUTES
+    global TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, POLL_INTERVAL_SECONDS
     global SCORE_THRESHOLD, PRICE_ALERT_THRESHOLD, MAX_ALERTS_PER_RUN
     global INCLUDE_NITTER, DEBUG_SCORING
 
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "") or "8658424510:AAHHp2k-6Y3UDvzXqmMK-aSn1gQixD9rKIU"
-    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "") or "5185818616"
-    POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "5"))
+    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
+    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+    POLL_INTERVAL_SECONDS = int(os.getenv("POLL_INTERVAL_SECONDS", "30"))
     SCORE_THRESHOLD = int(os.getenv("SCORE_THRESHOLD", "40"))
     PRICE_ALERT_THRESHOLD = float(os.getenv("PRICE_ALERT_THRESHOLD", "3.0"))
     MAX_ALERTS_PER_RUN = int(os.getenv("MAX_ALERTS_PER_RUN", "8"))
     INCLUDE_NITTER = os.getenv("INCLUDE_NITTER", "true").lower() == "true"
     DEBUG_SCORING = os.getenv("DEBUG_SCORING", "false").lower() == "true"
-
-    # Debug: vis om env vars faktisk kom fra Railway eller fallback
-    token_from_env = bool(os.getenv("TELEGRAM_TOKEN", ""))
-    chat_from_env = bool(os.getenv("TELEGRAM_CHAT_ID", ""))
-    kkkk = os.getenv("KKKK", "ikke satt")
-    logger.info(f"Config: TOKEN fra env={token_from_env}, CHAT_ID fra env={chat_from_env}, KKKK={kkkk}")
-    logger.info(f"Config: poll={POLL_INTERVAL_MINUTES}m, threshold={SCORE_THRESHOLD}, price_alert=${PRICE_ALERT_THRESHOLD}")
 
 
 # ──────────────────────────────────────────────
@@ -263,7 +256,7 @@ def main() -> None:
         sys.exit(1)
 
     logger.info(f"Bot verifisert: @{bot_info.get('username')}")
-    logger.info(f"Poller hvert {POLL_INTERVAL_MINUTES}. minutt")
+    logger.info(f"Poller hvert {POLL_INTERVAL_SECONDS} sekund")
     logger.info(f"Score-terskel: {SCORE_THRESHOLD}/100")
     logger.info(f"Nitter aktivert: {INCLUDE_NITTER}")
 
@@ -284,8 +277,8 @@ def main() -> None:
         logger.error(f"Feil i første kjøring: {e}", exc_info=True)
 
     # Scheduler-loop
-    interval_seconds = POLL_INTERVAL_MINUTES * 60
-    logger.info(f"Venter {POLL_INTERVAL_MINUTES} min til neste kjøring…")
+    interval_seconds = POLL_INTERVAL_SECONDS
+    logger.info(f"Venter {POLL_INTERVAL_SECONDS}s til neste kjøring…")
 
     while True:
         time.sleep(interval_seconds)
@@ -299,7 +292,7 @@ def main() -> None:
             # Ikke krasj – vent og prøv igjen
             logger.info("Fortsetter etter feil…")
 
-        logger.info(f"Venter {POLL_INTERVAL_MINUTES} min til neste kjøring…")
+        logger.info(f"Venter {POLL_INTERVAL_SECONDS}s til neste kjøring…")
 
 
 if __name__ == "__main__":
