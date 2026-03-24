@@ -25,19 +25,11 @@ class Article:
 # RSS-feeds (ingen API-nøkkel nødvendig)
 # ──────────────────────────────────────────────
 RSS_FEEDS = {
-    # Reuters
-    "Reuters Energy": "https://feeds.reuters.com/reuters/businessNews",
-    "Reuters Commodities": "https://feeds.reuters.com/reuters/CNenergyNews",
+    # OilPrice.com – dedikert oljefeed (fungerer bra)
+    "OilPrice.com": "https://oilprice.com/rss/main",
 
-    # AP News
-    "AP Business": "https://rsshub.app/apnews/topics/business",
-    "AP World": "https://rsshub.app/apnews/topics/world-news",
-
-    # S&P Global / Platts
-    "S&P Global Commodities": "https://www.spglobal.com/commodityinsights/en/rss-feed/oil",
-
-    # OPEC
-    "OPEC News": "https://www.opec.org/opec_web/en/press_room/rss.xml",
+    # CNBC Energy
+    "CNBC Energy": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
 
     # Al Jazeera (god på Midtøsten/geopolitikk)
     "Al Jazeera": "https://www.aljazeera.com/xml/rss/all.xml",
@@ -45,20 +37,26 @@ RSS_FEEDS = {
     # The Guardian – Energy
     "Guardian Energy": "https://www.theguardian.com/environment/energy/rss",
 
-    # Financial Times (åpne RSS)
-    "FT Energy": "https://www.ft.com/rss/home/uk",
+    # Middle East Eye (geopolitikk som påvirker olje)
+    "Middle East Eye": "https://www.middleeasteye.net/rss",
 
-    # OilPrice.com – dedikert oljefeed
-    "OilPrice.com": "https://oilprice.com/rss/main",
+    # CNBC Business
+    "CNBC Business": "https://www.cnbc.com/id/100003114/device/rss/rss.html",
 
-    # Rigzone
-    "Rigzone": "https://www.rigzone.com/rss/news.aspx",
+    # Yahoo Finance – Energy ETF nyheter
+    "Yahoo Energy": "https://finance.yahoo.com/rss/headline?s=XLE",
 
-    # EIA (U.S. Energy Information Administration)
-    "EIA News": "https://www.eia.gov/rss/news.xml",
+    # Yahoo Finance – Brent crude nyheter
+    "Yahoo Brent": "https://finance.yahoo.com/rss/headline?s=BZ=F",
 
     # Natural Gas Intelligence
     "NGI": "https://www.naturalgasintel.com/feed/",
+
+    # Hellenic Shipping News (olje-shipping)
+    "Hellenic Shipping": "https://www.hellenicshippingnews.com/feed/",
+
+    # Financial Times
+    "FT Energy": "https://www.ft.com/rss/home/uk",
 }
 
 # ──────────────────────────────────────────────

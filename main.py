@@ -61,6 +61,13 @@ def load_config():
     INCLUDE_NITTER = os.getenv("INCLUDE_NITTER", "true").lower() == "true"
     DEBUG_SCORING = os.getenv("DEBUG_SCORING", "false").lower() == "true"
 
+    # Debug: vis om env vars faktisk kom fra Railway eller fallback
+    token_from_env = bool(os.getenv("TELEGRAM_TOKEN", ""))
+    chat_from_env = bool(os.getenv("TELEGRAM_CHAT_ID", ""))
+    kkkk = os.getenv("KKKK", "ikke satt")
+    logger.info(f"Config: TOKEN fra env={token_from_env}, CHAT_ID fra env={chat_from_env}, KKKK={kkkk}")
+    logger.info(f"Config: poll={POLL_INTERVAL_MINUTES}m, threshold={SCORE_THRESHOLD}, price_alert=${PRICE_ALERT_THRESHOLD}")
+
 
 # ──────────────────────────────────────────────
 # Logging
