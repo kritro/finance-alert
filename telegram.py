@@ -141,12 +141,18 @@ def send_alert(
 
 def send_startup_message(token: str, chat_id: str) -> bool:
     """Sender en oppstartsmelding for å bekrefte at boten kjører."""
+    from price import fetch_brent_price
+    price = fetch_brent_price()
+    price_str = f"Brent nå: ${price:.2f}/fat" if price else "Brent-pris: hentes ved neste sjekk"
+
     payload = {
         "chat_id": chat_id,
         "text": (
             "🛢️ Oljepris-varsler startet!\n\n"
-            "Overvåker nyheter fra Reuters, AP, OilPrice.com, OPEC, EIA og mer.\n"
-            "Du vil motta varsler når relevante oljeprissensitive nyheter oppdages."
+            f"📊 {price_str}\n"
+            f"⚙️ Prisvarsel ved ±$3.00 endring\n"
+            f"📡 Overvåker 12+ nyhetskilder hvert 5. minutt\n\n"
+            "Du vil motta varsler når noe skjer."
         ),
     }
     result = _api_call(token, "sendMessage", payload)
