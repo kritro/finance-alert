@@ -65,6 +65,16 @@ logger = logging.getLogger("main")
 
 def validate_config() -> bool:
     """Sjekker at nødvendige miljøvariabler er satt."""
+    # Debug: vis hva vi faktisk ser
+    logger.info(f"TELEGRAM_TOKEN satt: {bool(TELEGRAM_TOKEN)} (lengde: {len(TELEGRAM_TOKEN)})")
+    logger.info(f"TELEGRAM_CHAT_ID satt: {bool(TELEGRAM_CHAT_ID)} (lengde: {len(TELEGRAM_CHAT_ID)})")
+
+    # Vis alle env vars som inneholder TELEGRAM
+    import os as _os
+    for key, val in _os.environ.items():
+        if "TELEGRAM" in key:
+            logger.info(f"ENV: {key} = {val[:5]}...{val[-3:]} (len={len(val)})")
+
     missing = []
     if not TELEGRAM_TOKEN:
         missing.append("TELEGRAM_TOKEN")
