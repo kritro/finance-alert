@@ -47,23 +47,13 @@ DEBUG_SCORING: bool = False
 
 
 def load_config():
-    """Laster konfig fra miljøvariabler (kjøres ved oppstart, ikke ved import)."""
+    """Laster konfig."""
     global TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, POLL_INTERVAL_MINUTES
     global SCORE_THRESHOLD, PRICE_ALERT_THRESHOLD, MAX_ALERTS_PER_RUN
     global INCLUDE_NITTER, DEBUG_SCORING
 
-    # Debug: dump alle env vars
-    logger.info("=== ALLE MILJØVARIABLER ===")
-    for key in sorted(os.environ.keys()):
-        val = os.environ[key]
-        if len(val) > 20:
-            logger.info(f"  {key} = {val[:10]}... (len={len(val)})")
-        else:
-            logger.info(f"  {key} = {val}")
-    logger.info("=== SLUTT MILJØVARIABLER ===")
-
-    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "")
-    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "")
+    TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "") or "8658424510:AAHHp2k-6Y3UDvzXqmMK-aSn1gQixD9rKIU"
+    TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "") or "5185818616"
     POLL_INTERVAL_MINUTES = int(os.getenv("POLL_INTERVAL_MINUTES", "5"))
     SCORE_THRESHOLD = int(os.getenv("SCORE_THRESHOLD", "40"))
     PRICE_ALERT_THRESHOLD = float(os.getenv("PRICE_ALERT_THRESHOLD", "3.0"))
@@ -91,16 +81,6 @@ logger = logging.getLogger("main")
 
 def validate_config() -> bool:
     """Sjekker at nødvendige miljøvariabler er satt."""
-    # Debug: vis hva vi faktisk ser
-    logger.info(f"TELEGRAM_TOKEN satt: {bool(TELEGRAM_TOKEN)} (lengde: {len(TELEGRAM_TOKEN)})")
-    logger.info(f"TELEGRAM_CHAT_ID satt: {bool(TELEGRAM_CHAT_ID)} (lengde: {len(TELEGRAM_CHAT_ID)})")
-
-    # Vis alle env vars som inneholder TELEGRAM
-    import os as _os
-    for key, val in _os.environ.items():
-        if "TELEGRAM" in key:
-            logger.info(f"ENV: {key} = {val[:5]}...{val[-3:]} (len={len(val)})")
-
     missing = []
     if not TELEGRAM_TOKEN:
         missing.append("TELEGRAM_TOKEN")
