@@ -8,5 +8,5 @@ feedparser==6.0.11
 # Telegram-klienten i telegram.py bruker urllib (standardbibliotek)
 # Scheduler i main.py bruker time.sleep (standardbibliotek)
 
-# Valgfritt: python-dotenv for lokal utvikling (.env-fil)
-python-dotenv==1.0.1
+# Pillow (bildebehandling for Alta panorama)
+Pillow==11.1.0

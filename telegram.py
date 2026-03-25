@@ -317,26 +317,45 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
                 if resp.status == 200:
                     image_data = resp.read()
                     if len(image_data) > 1000:
-                        caption = f"🏔️ Port of Alta – {t.strftime('%H:%M')} norsk tid"
+                        # Split 360° panorama i 3 deler for mobilvennlig visning
+                        from io import BytesIO
+                        from PIL import Image
 
-                        import uuid
-                        boundary = uuid.uuid4().hex
-                        body = (
-                            f"--{boundary}\r\n"
-                            f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
-                            f"--{boundary}\r\n"
-                            f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
-                            f"--{boundary}\r\n"
-                            f'Content-Disposition: form-data; name="photo"; filename="alta.jpg"\r\n'
-                            f"Content-Type: image/jpeg\r\n\r\n"
-                        ).encode("utf-8") + image_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+                        img = Image.open(BytesIO(image_data))
+                        w, h = img.size
+                        part_w = w // 3
+                        parts = [
+                            ("Vest", img.crop((0, 0, part_w, h))),
+                            ("Nord", img.crop((part_w, 0, part_w * 2, h))),
+                            ("Øst", img.crop((part_w * 2, 0, w, h))),
+                        ]
 
-                        api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
-                        req2 = urllib.request.Request(api_url, data=body, headers={
-                            "Content-Type": f"multipart/form-data; boundary={boundary}",
-                        })
-                        urllib.request.urlopen(req2, timeout=15)
-                        logger.info(f"Alta-bilde sendt: {t.strftime('%H:%M')}")
+                        time_str = t.strftime('%H:%M')
+                        for label, part_img in parts:
+                            buf = BytesIO()
+                            part_img.save(buf, format="JPEG", quality=85)
+                            part_data = buf.getvalue()
+                            caption = f"🏔️ Alta havn – {label} – {time_str}"
+
+                            import uuid
+                            boundary = uuid.uuid4().hex
+                            body = (
+                                f"--{boundary}\r\n"
+                                f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
+                                f"--{boundary}\r\n"
+                                f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+                                f"--{boundary}\r\n"
+                                f'Content-Disposition: form-data; name="photo"; filename="alta.jpg"\r\n'
+                                f"Content-Type: image/jpeg\r\n\r\n"
+                            ).encode("utf-8") + part_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+                            api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+                            req2 = urllib.request.Request(api_url, data=body, headers={
+                                "Content-Type": f"multipart/form-data; boundary={boundary}",
+                            })
+                            urllib.request.urlopen(req2, timeout=15)
+
+                        logger.info(f"Alta-bilder sendt (3 deler): {time_str}")
                         return
         except Exception:
             continue
