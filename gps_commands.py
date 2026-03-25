@@ -92,6 +92,57 @@ def format_names_report(lat: float = None, lon: float = None, region: str = None
         return "⚠️ Klarte ikke hente navnestatistikk."
 
 
+def geology(lat: float, lon: float) -> str:
+    """Henter geologisk info via Macrostrat API."""
+    try:
+        url = f"https://macrostrat.org/api/v2/geologic_units/map?lat={lat}&lng={lon}&response=long"
+        req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        data = json.loads(urllib.request.urlopen(req, timeout=10).read())
+        units = data.get("success", {}).get("data", [])
+
+        if not units:
+            return "🪨 Ingen geologisk data funnet for dette punktet."
+
+        lines = [
+            "🪨 GEOLOGI",
+            f"📍 {lat:.3f}°N, {lon:.3f}°E",
+            "",
+        ]
+
+        for u in units[:3]:
+            name = u.get("name", "Ukjent")
+            age_name = u.get("best_int_name", "")
+            t_age = u.get("t_age", 0)
+            b_age = u.get("b_age", 0)
+            lith = u.get("lith", "")
+            color = u.get("color", "")
+
+            lines.append(f"🏔️ {name}")
+
+            if age_name:
+                if b_age and t_age:
+                    lines.append(f"   📅 {age_name} ({t_age:.0f}–{b_age:.0f} mill. år)")
+                else:
+                    lines.append(f"   📅 {age_name}")
+
+            if lith:
+                # Rens og forenkle mineralinfo
+                lith_clean = lith.replace("Major:{", "").replace("Minor{", "").replace("}", "")
+                lith_clean = lith_clean.replace(" group", "").replace(" dominated", "")
+                if len(lith_clean) > 80:
+                    lith_clean = lith_clean[:80] + "…"
+                lines.append(f"   💎 {lith_clean}")
+
+            lines.append("")
+
+        lines.append("Kilde: Macrostrat.org")
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error(f"Geologi feilet: {e}")
+        return "⚠️ Klarte ikke hente geologisk data."
+
+
 def uv_index(lat: float, lon: float) -> str:
     """Henter UV-indeks via Open-Meteo."""
     try:

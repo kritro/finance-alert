@@ -305,6 +305,9 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 elif text in ("/webcam", "webcam"):
                     _pending_location[chat_id] = "webcam"
                     _request_location(token, chat_id, "📷 Del posisjonen din så finner jeg nærmeste webkamera!")
+                elif text in ("/geologi", "geologi"):
+                    _pending_location[chat_id] = "geologi"
+                    _request_location(token, chat_id, "🪨 Del posisjonen din så sjekker jeg geologien!")
                 elif text in ("/navn", "navn"):
                     _pending_location[chat_id] = "navn"
                     _request_location(token, chat_id, "👶 Del posisjonen din så viser jeg populære babynavn!")
@@ -359,6 +362,13 @@ def run_command_listener(token: str, chat_id: str) -> None:
                         })
                     elif cmd == "webcam":
                         _handle_nearest_webcam(token, chat_id, lat, lon)
+                    elif cmd == "geologi":
+                        from gps_commands import geology
+                        _api_call(token, "sendMessage", {
+                            "chat_id": chat_id,
+                            "text": geology(lat, lon),
+                            "reply_markup": json.dumps({"remove_keyboard": True}),
+                        })
                     elif cmd == "navn":
                         from gps_commands import format_names_report
                         _api_call(token, "sendMessage", {
@@ -1046,6 +1056,7 @@ def _handle_help_command(token: str, chat_id: str) -> None:
         "  /uv – UV-stråling",
         "  /navn – Populære babynavn i ditt fylke",
         "  /webcam – Nærmeste webkamera",
+        "  /geologi – Bergarter og mineraler",
         "",
         "📷 Webkameraer:",
         "  /webcam – Nærmeste kamera (GPS)",
