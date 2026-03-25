@@ -287,9 +287,9 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 elif text in ("/navnoslo",):
                     from gps_commands import format_names_report
                     _api_call(token, "sendMessage", {"chat_id": chat_id, "text": format_names_report(region="Oslo")})
-                elif text in ("/navnbergen",):
+                elif text in ("/navnvestland",):
                     from gps_commands import format_names_report
-                    _api_call(token, "sendMessage", {"chat_id": chat_id, "text": format_names_report(region="Bergen")})
+                    _api_call(token, "sendMessage", {"chat_id": chat_id, "text": format_names_report(region="Vestland")})
                 elif text in ("/navnfinnmark",):
                     from gps_commands import format_names_report
                     _api_call(token, "sendMessage", {"chat_id": chat_id, "text": format_names_report(region="Finnmark")})
