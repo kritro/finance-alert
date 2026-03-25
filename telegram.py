@@ -269,6 +269,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_webcam_url_command(token, chat_id, "https://images.stream.schibsted.media/users/bttts/images/a1dc26cff813577b947620d56f455247.jpg", "🏔️ Ulriken, Bergen")
                 elif text in ("/bergenhavn", "bergenhavn"):
                     _handle_webcam_url_command(token, chat_id, "https://www.node.no/images/webcam/webcam.jpg", "🚢 Bergen havn")
+                elif text in ("/oslorådhus", "oslorådhus", "/osloradhus"):
+                    _handle_webcam_url_command(token, chat_id, "https://www.oslohavn.no/webcam/raadhusintranett.jpg", "🏛️ Rådhuskaia, Oslo")
                 elif text in ("/alta", "alta"):
                     _handle_alta_command(token, chat_id)
                 elif text in ("/tønsberg", "tønsberg", "/tonsberg", "tonsberg"):
