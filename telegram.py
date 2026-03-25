@@ -250,6 +250,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_price_command(token, chat_id)
                 elif text in ("/bårdfjord", "bårdfjord"):
                     _handle_wind_command(token, chat_id)
+                elif text in ("/sotrabro", "sotrabro"):
+                    _handle_sotrabro_command(token, chat_id)
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -290,6 +292,49 @@ def _handle_price_command(token: str, chat_id: str) -> None:
         "chat_id": chat_id,
         "text": "\n".join(lines),
     })
+
+
+def _handle_sotrabro_command(token: str, chat_id: str) -> None:
+    """Sender live-bilde fra Sotrabrua-kameraet."""
+    import urllib.request
+
+    cam_urls = [
+        ("Sotrabrua vest (retning 1)", "https://www.yr.no/webcams/3/2000/1229038_1"),
+        ("Sotrabrua vest (retning 2)", "https://www.yr.no/webcams/3/2000/1229038_2"),
+    ]
+
+    for caption, url in cam_urls:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                image_data = resp.read()
+
+            # Send bilde via Telegram multipart
+            import uuid
+            boundary = uuid.uuid4().hex
+            body = (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="caption"\r\n\r\n🌉 {caption}\r\n'
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="photo"; filename="sotra.jpg"\r\n'
+                f"Content-Type: image/jpeg\r\n\r\n"
+            ).encode("utf-8") + image_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+            api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+            req = urllib.request.Request(api_url, data=body, headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            })
+            urllib.request.urlopen(req, timeout=15)
+            logger.info(f"Sotrabro-bilde sendt: {caption}")
+
+        except Exception as e:
+            logger.error(f"Sotrabro-bilde feilet: {e}")
+            _api_call(token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": f"⚠️ Klarte ikke hente bilde fra {caption}",
+            })
 
 
 def _handle_wind_command(token: str, chat_id: str) -> None:
@@ -335,10 +380,11 @@ def _handle_help_command(token: str, chat_id: str) -> None:
         "",
         "/price – Nåværende Brent-pris",
         "/bårdfjord – Vind på Bårdfjordneset",
+        "/sotrabro – Live-bilde fra Sotrabrua",
         "/status – Bot-status og statistikk",
         "/help – Denne meldingen",
         "",
-        "Du kan også bare skrive: pris, olje, bårdfjord",
+        "Du kan også bare skrive: pris, olje, bårdfjord, sotrabro",
     ]
 
     _api_call(token, "sendMessage", {
