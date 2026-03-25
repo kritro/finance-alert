@@ -248,6 +248,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
 
                 if text in ("/price", "/pris", "pris", "price", "oil", "olje"):
                     _handle_price_command(token, chat_id)
+                elif text in ("/wind", "/vind", "vind", "wind"):
+                    _handle_wind_command(token, chat_id)
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -290,6 +292,20 @@ def _handle_price_command(token: str, chat_id: str) -> None:
     })
 
 
+def _handle_wind_command(token: str, chat_id: str) -> None:
+    """Svarer med nåværende vind på Bårdfjordneset."""
+    from weather import format_wind_report
+
+    msg = format_wind_report()
+    if msg is None:
+        msg = "⚠️ Klarte ikke hente vinddata akkurat nå. Prøv igjen om litt."
+
+    _api_call(token, "sendMessage", {
+        "chat_id": chat_id,
+        "text": msg,
+    })
+
+
 def _handle_status_command(token: str, chat_id: str) -> None:
     """Svarer med bot-status."""
     from seen import get_store
@@ -318,10 +334,11 @@ def _handle_help_command(token: str, chat_id: str) -> None:
         "🛢️ TILGJENGELIGE KOMMANDOER",
         "",
         "/price – Nåværende Brent-pris",
+        "/vind – Vind på Bårdfjordneset",
         "/status – Bot-status og statistikk",
         "/help – Denne meldingen",
         "",
-        "Du kan også bare skrive: pris, olje, oil",
+        "Du kan også bare skrive: pris, olje, vind, wind",
     ]
 
     _api_call(token, "sendMessage", {
