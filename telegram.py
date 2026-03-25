@@ -281,6 +281,9 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 elif text in ("/lading", "lading"):
                     _pending_location[chat_id] = "lading"
                     _request_location(token, chat_id, "⚡ Del posisjonen din så finner jeg nærmeste elbil-lader!")
+                elif text in ("/uv", "uv"):
+                    _pending_location[chat_id] = "uv"
+                    _request_location(token, chat_id, "☀️ Del posisjonen din så sjekker jeg UV-strålingen!")
                 elif text in ("/navn", "navn"):
                     _pending_location[chat_id] = "navn"
                     _request_location(token, chat_id, "👶 Del posisjonen din så viser jeg populære babynavn!")
@@ -324,6 +327,13 @@ def run_command_listener(token: str, chat_id: str) -> None:
                         _api_call(token, "sendMessage", {
                             "chat_id": chat_id,
                             "text": nearest_chargers(lat, lon),
+                            "reply_markup": json.dumps({"remove_keyboard": True}),
+                        })
+                    elif cmd == "uv":
+                        from gps_commands import uv_index
+                        _api_call(token, "sendMessage", {
+                            "chat_id": chat_id,
+                            "text": uv_index(lat, lon),
                             "reply_markup": json.dumps({"remove_keyboard": True}),
                         })
                     elif cmd == "navn":

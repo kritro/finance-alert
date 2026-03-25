@@ -90,6 +90,61 @@ def format_names_report(lat: float = None, lon: float = None, region: str = None
     except Exception as e:
         logger.error(f"Navn feilet: {e}")
         return "⚠️ Klarte ikke hente navnestatistikk."
+
+
+def uv_index(lat: float, lon: float) -> str:
+    """Henter UV-indeks via Open-Meteo."""
+    try:
+        url = (
+            f"https://api.open-meteo.com/v1/forecast?"
+            f"latitude={lat}&longitude={lon}&current=uv_index,uv_index_clear_sky&timezone=auto"
+        )
+        req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        data = json.loads(urllib.request.urlopen(req, timeout=8).read())
+        current = data.get("current", {})
+
+        uv = current.get("uv_index", 0)
+        uv_clear = current.get("uv_index_clear_sky", 0)
+
+        if uv <= 2:
+            level = "🟢 Lav"
+            advice = "Ingen beskyttelse nødvendig."
+        elif uv <= 5:
+            level = "🟡 Moderat"
+            advice = "Bruk solkrem og solbriller."
+        elif uv <= 7:
+            level = "🟠 Høy"
+            advice = "Solkrem, solbriller, hatt. Søk skygge midt på dagen."
+        elif uv <= 10:
+            level = "🔴 Veldig høy"
+            advice = "Unngå sola 10-16. Solkrem SPF 30+."
+        else:
+            level = "🟣 Ekstrem"
+            advice = "Hold deg innendørs midt på dagen!"
+
+        bar_filled = min(round(uv), 11)
+        bar = "█" * bar_filled + "░" * (11 - bar_filled)
+
+        lines = [
+            "☀️ UV-INDEKS",
+            f"📍 {lat:.2f}°N, {lon:.2f}°E",
+            "",
+            f"🔆 UV nå: {uv:.1f} – {level}",
+            f"   {bar} ({uv:.1f}/11+)",
+            f"☁️ Ved klar himmel: {uv_clear:.1f}",
+            "",
+            f"💡 {advice}",
+            "",
+            "Kilde: Open-Meteo",
+        ]
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error(f"UV feilet: {e}")
+        return "⚠️ Klarte ikke hente UV-data."
+
+
+def nearest_departures(lat: float, lon: float) -> str:
     """Finner nærmeste holdeplass og neste avganger via Entur."""
     try:
         # Finn nærmeste holdeplass
