@@ -257,6 +257,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_wind_command(token, chat_id)
                 elif text in ("/sotrabro", "sotrabro"):
                     _handle_sotrabro_command(token, chat_id)
+                elif text in ("/tønsbergbåt", "tønsbergbåt", "/tonsbergbat"):
+                    _handle_webcam_url_command(token, chat_id, "https://ollebukta.no/Ollebukta.jpg", "⛵ Ollebukta, Tønsberg")
                 elif text in ("/alta", "alta"):
                     _handle_alta_command(token, chat_id)
                 elif text in ("/tønsberg", "tønsberg", "/tonsberg", "tonsberg"):
@@ -753,6 +755,37 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
             "chat_id": chat_id,
             "text": "⚠️ Klarte ikke prosessere Alta-bilde.",
         })
+
+
+def _handle_webcam_url_command(token: str, chat_id: str, url: str, caption: str) -> None:
+    """Henter og sender et webkamera-bilde fra en URL."""
+    import urllib.request
+    import uuid
+
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        image_data = urllib.request.urlopen(req, timeout=15).read()
+
+        boundary = uuid.uuid4().hex
+        body = (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="photo"; filename="cam.jpg"\r\n'
+            f"Content-Type: image/jpeg\r\n\r\n"
+        ).encode("utf-8") + image_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+        req2 = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendPhoto",
+            data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        urllib.request.urlopen(req2, timeout=15)
+    except Exception as e:
+        logger.error(f"Webcam feilet: {e}")
+        _api_call(token, "sendMessage", {"chat_id": chat_id, "text": f"⚠️ Klarte ikke hente bilde."})
 
 
 def _handle_sotrabro_command(token: str, chat_id: str) -> None:
