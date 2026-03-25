@@ -270,7 +270,7 @@ def main() -> None:
     load_config()
 
     # Info-bot token (separat bot for on-demand kommandoer)
-    info_bot_token = os.getenv("INFO_BOT_TOKEN", "") or "8745637212:AAEx2LRzSohHzIj76acwB47wbymuYvx7fhA"
+    info_bot_token = os.getenv("INFO_BOT_TOKEN", "")
 
     logger.info("=" * 60)
     logger.info("  Oljepris-varsel-bot starter")
