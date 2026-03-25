@@ -11,7 +11,92 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
-def nearest_departures(lat: float, lon: float) -> str:
+def top_names(year: str = "2025") -> dict:
+    """Henter topp jentenavn og guttenavn fra SSB."""
+    import urllib.request as _req
+
+    body = json.dumps({
+        "query": [
+            {"code": "Fornavn", "selection": {"filter": "all", "values": ["*"]}},
+            {"code": "ContentsCode", "selection": {"filter": "item", "values": ["Personer"]}},
+            {"code": "Tid", "selection": {"filter": "item", "values": [year]}},
+        ],
+        "response": {"format": "json-stat2"},
+    }).encode()
+
+    req = _req.Request(
+        "https://data.ssb.no/api/v0/no/table/10467",
+        data=body,
+        headers={"User-Agent": "oil-alert-bot/1.0", "Content-Type": "application/json"},
+    )
+    data = json.loads(_req.urlopen(req, timeout=10).read())
+
+    codes = data["dimension"]["Fornavn"]["category"]["index"]
+    labels = data["dimension"]["Fornavn"]["category"]["label"]
+    vals = data["value"]
+
+    girls, boys = [], []
+    for i, code in enumerate(codes):
+        name = labels[code]
+        count = vals[i] or 0
+        if count == 0:
+            continue
+        if code.startswith("1"):
+            girls.append((name, count))
+        else:
+            boys.append((name, count))
+
+    girls.sort(key=lambda x: -x[1])
+    boys.sort(key=lambda x: -x[1])
+    return {"girls": girls, "boys": boys, "year": year}
+
+
+def municipality_from_gps(lat: float, lon: float) -> Optional[dict]:
+    """Finner kommune fra GPS via Kartverket."""
+    import urllib.request as _req
+    try:
+        url = f"https://ws.geonorge.no/kommuneinfo/v1/punkt?nord={lat}&ost={lon}&koordsys=4326"
+        req = _req.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        return json.loads(_req.urlopen(req, timeout=8).read())
+    except Exception:
+        return None
+
+
+def format_names_report(lat: float = None, lon: float = None, region: str = None) -> str:
+    """Formaterer navnestatistikk for Telegram."""
+    try:
+        data = top_names("2025")
+
+        header = "👶 POPULÆRE BABYNAVN 2025"
+        location_line = ""
+
+        if lat and lon:
+            muni = municipality_from_gps(lat, lon)
+            if muni:
+                location_line = f"📍 {muni['kommunenavn']}, {muni['fylkesnavn']}"
+        elif region:
+            location_line = f"📍 {region}"
+
+        lines = [header]
+        if location_line:
+            lines.append(location_line)
+        lines.append("")
+
+        lines.append("👧 Jenter:")
+        for i, (name, count) in enumerate(data["girls"][:10], 1):
+            lines.append(f"  {i:2d}. {name} ({count})")
+
+        lines.append("")
+        lines.append("👦 Gutter:")
+        for i, (name, count) in enumerate(data["boys"][:10], 1):
+            lines.append(f"  {i:2d}. {name} ({count})")
+
+        lines.append("\nKilde: SSB")
+        return "\n".join(lines)
+
+    except Exception as e:
+        logger.error(f"Navn feilet: {e}")
+        return "⚠️ Klarte ikke hente navnestatistikk."
     """Finner nærmeste holdeplass og neste avganger via Entur."""
     try:
         # Finn nærmeste holdeplass

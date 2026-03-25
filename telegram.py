@@ -281,6 +281,18 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 elif text in ("/lading", "lading"):
                     _pending_location[chat_id] = "lading"
                     _request_location(token, chat_id, "⚡ Del posisjonen din så finner jeg nærmeste elbil-lader!")
+                elif text in ("/navn", "navn"):
+                    _pending_location[chat_id] = "navn"
+                    _request_location(token, chat_id, "👶 Del posisjonen din så viser jeg populære babynavn!")
+                elif text in ("/navnoslo",):
+                    from gps_commands import format_names_report
+                    _api_call(token, "sendMessage", {"chat_id": chat_id, "text": format_names_report(region="Oslo")})
+                elif text in ("/navnbergen",):
+                    from gps_commands import format_names_report
+                    _api_call(token, "sendMessage", {"chat_id": chat_id, "text": format_names_report(region="Bergen")})
+                elif text in ("/navnfinnmark",):
+                    from gps_commands import format_names_report
+                    _api_call(token, "sendMessage", {"chat_id": chat_id, "text": format_names_report(region="Finnmark")})
                 elif text in ("/romfart", "romfart", "/space"):
                     _handle_fun_command(token, chat_id, "romfart")
                 elif text in ("/bmi", "bmi"):
@@ -312,6 +324,13 @@ def run_command_listener(token: str, chat_id: str) -> None:
                         _api_call(token, "sendMessage", {
                             "chat_id": chat_id,
                             "text": nearest_chargers(lat, lon),
+                            "reply_markup": json.dumps({"remove_keyboard": True}),
+                        })
+                    elif cmd == "navn":
+                        from gps_commands import format_names_report
+                        _api_call(token, "sendMessage", {
+                            "chat_id": chat_id,
+                            "text": format_names_report(lat=lat, lon=lon),
                             "reply_markup": json.dumps({"remove_keyboard": True}),
                         })
                 elif text in ("/status", "status"):
