@@ -263,7 +263,7 @@ def run_once(seen, prune_every: int = 20, _run_count: list = [0]) -> int:
 # ──────────────────────────────────────────────
 
 def main() -> None:
-    from telegram import get_bot_info, send_startup_message
+    from telegram import get_bot_info, send_startup_message, process_commands
     from seen import get_store
 
     load_config()
@@ -315,10 +315,16 @@ def main() -> None:
 
     # Scheduler-loop
     interval_seconds = POLL_INTERVAL_SECONDS
+    last_update_id = 0
     logger.info(f"Venter {POLL_INTERVAL_SECONDS}s til neste kjøring…")
 
     while True:
         time.sleep(interval_seconds)
+        try:
+            # Sjekk innkommende kommandoer
+            last_update_id = process_commands(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, last_update_id)
+        except Exception as e:
+            logger.error(f"Kommando-sjekk feilet: {e}")
         try:
             run_once(seen)
         except KeyboardInterrupt:

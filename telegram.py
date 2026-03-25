@@ -209,6 +209,119 @@ def get_chat_id_from_updates(token: str) -> Optional[str]:
     return None
 
 
+def process_commands(token: str, chat_id: str, last_update_id: int = 0) -> int:
+    """
+    Sjekker etter innkommende kommandoer og svarer.
+    Returnerer siste update_id som er behandlet.
+
+    Støttede kommandoer:
+      /price   – nåværende Brent-pris
+      /status  – bot-status og statistikk
+      /help    – liste over kommandoer
+    """
+    result = _api_call(token, "getUpdates", {
+        "offset": last_update_id + 1,
+        "limit": 10,
+        "timeout": 0,
+    })
+
+    if not result or not result.get("ok"):
+        return last_update_id
+
+    updates = result.get("result", [])
+    for update in updates:
+        update_id = update.get("update_id", 0)
+        last_update_id = max(last_update_id, update_id)
+
+        msg = update.get("message", {})
+        text = msg.get("text", "").strip().lower()
+        msg_chat_id = str(msg.get("chat", {}).get("id", ""))
+
+        # Ignorer meldinger fra andre chatter
+        if msg_chat_id != chat_id:
+            continue
+
+        if text in ("/price", "/pris", "pris", "price", "oil", "olje"):
+            _handle_price_command(token, chat_id)
+        elif text in ("/status", "status"):
+            _handle_status_command(token, chat_id)
+        elif text in ("/help", "help", "hjelp", "/hjelp"):
+            _handle_help_command(token, chat_id)
+
+    return last_update_id
+
+
+def _handle_price_command(token: str, chat_id: str) -> None:
+    """Svarer med nåværende Brent-pris."""
+    from price import fetch_brent_price, _load_ref
+
+    current = fetch_brent_price()
+    if current is None:
+        _api_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "⚠️ Klarte ikke hente Brent-pris akkurat nå. Prøv igjen om litt.",
+        })
+        return
+
+    ref = _load_ref()
+    lines = [
+        "🛢️ BRENT CRUDE",
+        "",
+        f"💰 ${current:.2f} per fat",
+    ]
+
+    if ref:
+        change = current - ref["price"]
+        pct = (change / ref["price"]) * 100
+        emoji = "📈" if change > 0 else "📉" if change < 0 else "➡️"
+        lines.append(f"{emoji} {change:+.2f} USD ({pct:+.1f}%) fra referanse")
+
+    _api_call(token, "sendMessage", {
+        "chat_id": chat_id,
+        "text": "\n".join(lines),
+    })
+
+
+def _handle_status_command(token: str, chat_id: str) -> None:
+    """Svarer med bot-status."""
+    from seen import get_store
+    store = get_store()
+    stats = store.stats()
+
+    lines = [
+        "⚙️ BOT STATUS",
+        "",
+        f"📊 Artikler sett: {stats['total']}",
+        f"💾 Persistent: {'ja' if stats['persistent'] else 'nei'}",
+        f"📁 Fil: {stats['filepath']}",
+        "",
+        "🟢 Boten kjører normalt",
+    ]
+
+    _api_call(token, "sendMessage", {
+        "chat_id": chat_id,
+        "text": "\n".join(lines),
+    })
+
+
+def _handle_help_command(token: str, chat_id: str) -> None:
+    """Svarer med liste over kommandoer."""
+    lines = [
+        "🛢️ TILGJENGELIGE KOMMANDOER",
+        "",
+        "/price – Nåværende Brent-pris",
+        "/status – Bot-status og statistikk",
+        "/help – Denne meldingen",
+        "",
+        "Du kan også bare skrive: pris, olje, oil",
+    ]
+
+    _api_call(token, "sendMessage", {
+        "chat_id": chat_id,
+        "text": "\n".join(lines),
+    })
+
+
 if __name__ == "__main__":
     # Kjør dette scriptet direkte for å finne din chat_id:
     #   TELEGRAM_TOKEN=xxx python telegram.py
