@@ -10,6 +10,7 @@ import os
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta
 from typing import Optional
 
 from filter import ScoredArticle
@@ -252,6 +253,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_wind_command(token, chat_id)
                 elif text in ("/sotrabro", "sotrabro"):
                     _handle_sotrabro_command(token, chat_id)
+                elif text in ("/alta", "alta"):
+                    _handle_alta_command(token, chat_id)
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -291,6 +294,56 @@ def _handle_price_command(token: str, chat_id: str) -> None:
     _api_call(token, "sendMessage", {
         "chat_id": chat_id,
         "text": "\n".join(lines),
+    })
+
+
+def _handle_alta_command(token: str, chat_id: str) -> None:
+    """Sender live 360° panoramabilde fra Port of Alta."""
+    import urllib.request
+    from zoneinfo import ZoneInfo
+
+    now = datetime.now(ZoneInfo("Europe/Oslo"))
+
+    # Bildene oppdateres ca. hvert minutt, prøv nåværende og forrige minutter
+    for minutes_back in range(0, 10):
+        t = now - timedelta(minutes=minutes_back)
+        url = (
+            f"https://skaping.s3.gra.io.cloud.ovh.net/port-of-alta/"
+            f"{t.strftime('%Y/%m/%d')}/large/{t.strftime('%H-%M')}.jpg"
+        )
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status == 200:
+                    image_data = resp.read()
+                    if len(image_data) > 1000:
+                        caption = f"🏔️ Port of Alta – {t.strftime('%H:%M')} norsk tid"
+
+                        import uuid
+                        boundary = uuid.uuid4().hex
+                        body = (
+                            f"--{boundary}\r\n"
+                            f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
+                            f"--{boundary}\r\n"
+                            f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+                            f"--{boundary}\r\n"
+                            f'Content-Disposition: form-data; name="photo"; filename="alta.jpg"\r\n'
+                            f"Content-Type: image/jpeg\r\n\r\n"
+                        ).encode("utf-8") + image_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+                        api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+                        req2 = urllib.request.Request(api_url, data=body, headers={
+                            "Content-Type": f"multipart/form-data; boundary={boundary}",
+                        })
+                        urllib.request.urlopen(req2, timeout=15)
+                        logger.info(f"Alta-bilde sendt: {t.strftime('%H:%M')}")
+                        return
+        except Exception:
+            continue
+
+    _api_call(token, "sendMessage", {
+        "chat_id": chat_id,
+        "text": "⚠️ Klarte ikke hente bilde fra Port of Alta akkurat nå.",
     })
 
 
@@ -381,10 +434,11 @@ def _handle_help_command(token: str, chat_id: str) -> None:
         "/price – Nåværende Brent-pris",
         "/bårdfjord – Vind på Bårdfjordneset",
         "/sotrabro – Live-bilde fra Sotrabrua",
+        "/alta – Live 360° panorama fra Port of Alta",
         "/status – Bot-status og statistikk",
         "/help – Denne meldingen",
         "",
-        "Du kan også bare skrive: pris, olje, bårdfjord, sotrabro",
+        "Du kan også bare skrive: pris, olje, bårdfjord, sotrabro, alta",
     ]
 
     _api_call(token, "sendMessage", {
