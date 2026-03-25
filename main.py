@@ -144,12 +144,38 @@ def run_once(seen, prune_every: int = 20, _run_count: list = [0]) -> int:
     from filter import filter_articles, explain_score
     from telegram import send_batch, _api_call
     from seen import SeenStore
-    from price import check_price, format_price_alert
+    from price import check_price, format_price_alert, format_scheduled_price_report
 
     _run_count[0] += 1
     logger.info(f"--- Kjøring #{_run_count[0]} startet {datetime.utcnow().strftime('%H:%M:%S')} UTC ---")
 
     sent = 0
+
+    # ── Planlagt prisoppdatering kl 08:00 og 16:00 norsk tid ──
+    try:
+        from zoneinfo import ZoneInfo
+        now_oslo = datetime.now(ZoneInfo("Europe/Oslo"))
+        hour_min = now_oslo.strftime("%H:%M")
+        today_key = now_oslo.strftime("%Y-%m-%d")
+
+        # Sjekk om vi er innenfor et 1-minutts vindu rundt 08:00 eller 16:00
+        scheduled_times = {"08:00": "Morgen", "16:00": "Ettermiddag"}
+        for time_str, label in scheduled_times.items():
+            if hour_min == time_str:
+                report_key = f"price_report_{today_key}_{time_str}"
+                if not seen.has_seen(report_key):
+                    msg = format_scheduled_price_report(label)
+                    if msg:
+                        result = _api_call(TELEGRAM_TOKEN, "sendMessage", {
+                            "chat_id": TELEGRAM_CHAT_ID,
+                            "text": msg,
+                        })
+                        if result and result.get("ok"):
+                            seen.mark_seen(report_key)
+                            sent += 1
+                            logger.info(f"Prisrapport sendt: {label} ({time_str})")
+    except Exception as e:
+        logger.error(f"Planlagt prisrapport feilet: {e}")
 
     # ── Prissjekk ──
     try:

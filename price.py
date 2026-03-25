@@ -118,3 +118,29 @@ def format_price_alert(s: PriceSnapshot) -> str:
         lines.append("\n⚠️ Stor bevegelse i markedet.")
 
     return "\n".join(lines)
+
+
+def format_scheduled_price_report(time_label: str) -> Optional[str]:
+    """Formaterer en planlagt prisoppdatering (morgen/ettermiddag)."""
+    current = fetch_brent_price()
+    if current is None:
+        return None
+
+    ref = _load_ref()
+    if ref:
+        change = current - ref["price"]
+        change_pct = (change / ref["price"]) * 100
+        change_str = f"Endring siden sist: {change:+.2f} USD ({change_pct:+.1f}%)"
+    else:
+        change_str = ""
+
+    lines = [
+        f"🛢️ BRENT PRISOPPDATERING – {time_label}",
+        "",
+        f"💰 ${current:.2f} per fat",
+    ]
+
+    if change_str:
+        lines.append(change_str)
+
+    return "\n".join(lines)
