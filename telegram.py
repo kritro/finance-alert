@@ -402,12 +402,13 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
 
         img = Image.open(BytesIO(image_data))
         w, h = img.size
-        part_w = w // 4
+        part_w = w // 5
         parts = [
             ("Vest", img.crop((0, 0, part_w, h))),
             ("Nordvest", img.crop((part_w, 0, part_w * 2, h))),
-            ("Nordøst", img.crop((part_w * 2, 0, part_w * 3, h))),
-            ("Øst", img.crop((part_w * 3, 0, w, h))),
+            ("Nord", img.crop((part_w * 2, 0, part_w * 3, h))),
+            ("Nordøst", img.crop((part_w * 3, 0, part_w * 4, h))),
+            ("Øst", img.crop((part_w * 4, 0, w, h))),
         ]
 
         for label, part_img in parts:
