@@ -269,6 +269,9 @@ def main() -> None:
 
     load_config()
 
+    # Info-bot token (separat bot for on-demand kommandoer)
+    info_bot_token = os.getenv("INFO_BOT_TOKEN", "") or "8745637212:AAEx2LRzSohHzIj76acwB47wbymuYvx7fhA"
+
     logger.info("=" * 60)
     logger.info("  Oljepris-varsel-bot starter")
     logger.info("=" * 60)
@@ -308,13 +311,18 @@ def main() -> None:
     except Exception as e:
         logger.warning(f"Klarte ikke sende oppstartsmelding: {e}")
 
-    # Start kommando-lytter i egen tråd (instant-svar)
-    cmd_thread = threading.Thread(
-        target=run_command_listener,
-        args=(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID),
-        daemon=True,
-    )
-    cmd_thread.start()
+    # Start kommando-lytter for INFO-boten i egen tråd (instant-svar)
+    info_bot_info = get_bot_info(info_bot_token)
+    if info_bot_info:
+        logger.info(f"Info-bot verifisert: @{info_bot_info.get('username')}")
+        cmd_thread = threading.Thread(
+            target=run_command_listener,
+            args=(info_bot_token, TELEGRAM_CHAT_ID),
+            daemon=True,
+        )
+        cmd_thread.start()
+    else:
+        logger.warning("Info-bot token ugyldig – kommandoer deaktivert")
 
     # Første kjøring umiddelbart
     try:
