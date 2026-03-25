@@ -363,72 +363,84 @@ def _handle_tonsberg_command(token: str, chat_id: str) -> None:
 
 
 def _handle_alta_command(token: str, chat_id: str) -> None:
-    """Sender live 360° panoramabilde fra Port of Alta."""
+    """Sender live 360° panoramabilde fra Port of Alta (3 deler)."""
     import urllib.request
-    from zoneinfo import ZoneInfo
+    import re
 
-    now = datetime.now(ZoneInfo("Europe/Oslo"))
-
-    # Bildene oppdateres ca. hvert minutt, prøv nåværende og forrige minutter
-    for minutes_back in range(0, 10):
-        t = now - timedelta(minutes=minutes_back)
-        url = (
-            f"https://skaping.s3.gra.io.cloud.ovh.net/port-of-alta/"
-            f"{t.strftime('%Y/%m/%d')}/large/{t.strftime('%H-%M')}.jpg"
+    try:
+        # Hent siste bilde-URL fra meta-tag på siden
+        req = urllib.request.Request(
+            "https://weathercam.kystnor.no/port-of-alta",
+            headers={"User-Agent": "Mozilla/5.0"},
         )
-        try:
-            req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                if resp.status == 200:
-                    image_data = resp.read()
-                    if len(image_data) > 1000:
-                        # Split 360° panorama i 3 deler for mobilvennlig visning
-                        from io import BytesIO
-                        from PIL import Image
+        html = urllib.request.urlopen(req, timeout=10).read().decode("utf-8", errors="replace")
 
-                        img = Image.open(BytesIO(image_data))
-                        w, h = img.size
-                        part_w = w // 3
-                        parts = [
-                            ("Vest", img.crop((0, 0, part_w, h))),
-                            ("Nord", img.crop((part_w, 0, part_w * 2, h))),
-                            ("Øst", img.crop((part_w * 2, 0, w, h))),
-                        ]
+        # Finn bilde-URL fra og:image meta tag
+        match = re.search(r'og:image"\s+content="([^"]+)"', html)
+        if not match:
+            _api_call(token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": "⚠️ Fant ikke bilde-URL fra Alta-kameraet.",
+            })
+            return
 
-                        time_str = t.strftime('%H:%M')
-                        for label, part_img in parts:
-                            buf = BytesIO()
-                            part_img.save(buf, format="JPEG", quality=85)
-                            part_data = buf.getvalue()
-                            caption = f"🏔️ Alta havn – {label} – {time_str}"
+        image_url = match.group(1)
+        # Hent tidspunkt fra URL (format: .../large/HH-MM.jpg)
+        time_match = re.search(r'/(\d{2})-(\d{2})\.jpg', image_url)
+        time_str = f"{time_match.group(1)}:{time_match.group(2)}" if time_match else "nå"
 
-                            import uuid
-                            boundary = uuid.uuid4().hex
-                            body = (
-                                f"--{boundary}\r\n"
-                                f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
-                                f"--{boundary}\r\n"
-                                f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
-                                f"--{boundary}\r\n"
-                                f'Content-Disposition: form-data; name="photo"; filename="alta.jpg"\r\n'
-                                f"Content-Type: image/jpeg\r\n\r\n"
-                            ).encode("utf-8") + part_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+        # Hent bildet
+        req = urllib.request.Request(image_url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        image_data = urllib.request.urlopen(req, timeout=15).read()
 
-                            api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
-                            req2 = urllib.request.Request(api_url, data=body, headers={
-                                "Content-Type": f"multipart/form-data; boundary={boundary}",
-                            })
-                            urllib.request.urlopen(req2, timeout=15)
+        if len(image_data) < 1000:
+            raise Exception("Bildet er for lite")
 
-                        logger.info(f"Alta-bilder sendt (3 deler): {time_str}")
-                        return
-        except Exception:
-            continue
+        # Split 360° panorama i 3 deler
+        from io import BytesIO
+        from PIL import Image
 
-    _api_call(token, "sendMessage", {
-        "chat_id": chat_id,
-        "text": "⚠️ Klarte ikke hente bilde fra Port of Alta akkurat nå.",
-    })
+        img = Image.open(BytesIO(image_data))
+        w, h = img.size
+        part_w = w // 3
+        parts = [
+            ("Vest", img.crop((0, 0, part_w, h))),
+            ("Nord", img.crop((part_w, 0, part_w * 2, h))),
+            ("Øst", img.crop((part_w * 2, 0, w, h))),
+        ]
+
+        for label, part_img in parts:
+            buf = BytesIO()
+            part_img.save(buf, format="JPEG", quality=85)
+            part_data = buf.getvalue()
+            caption = f"🏔️ Alta havn – {label} – {time_str}"
+
+            import uuid
+            boundary = uuid.uuid4().hex
+            body = (
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+                f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="photo"; filename="alta.jpg"\r\n'
+                f"Content-Type: image/jpeg\r\n\r\n"
+            ).encode("utf-8") + part_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+            api_url = f"https://api.telegram.org/bot{token}/sendPhoto"
+            req2 = urllib.request.Request(api_url, data=body, headers={
+                "Content-Type": f"multipart/form-data; boundary={boundary}",
+            })
+            urllib.request.urlopen(req2, timeout=15)
+
+        logger.info(f"Alta-bilder sendt (3 deler): {time_str}")
+
+    except Exception as e:
+        logger.error(f"Alta-bilde feilet: {e}")
+        _api_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "⚠️ Klarte ikke hente bilde fra Alta akkurat nå.",
+        })
 
 
 def _handle_sotrabro_command(token: str, chat_id: str) -> None:
