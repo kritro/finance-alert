@@ -369,15 +369,18 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
 
     try:
         # Hent siste bilde-URL fra meta-tag på siden
+        logger.info("Alta: henter side fra weathercam.kystnor.no...")
         req = urllib.request.Request(
             "https://weathercam.kystnor.no/port-of-alta",
             headers={"User-Agent": "Mozilla/5.0"},
         )
         html = urllib.request.urlopen(req, timeout=10).read().decode("utf-8", errors="replace")
+        logger.info(f"Alta: fikk HTML ({len(html)} bytes)")
 
         # Finn bilde-URL fra og:image meta tag
         match = re.search(r'og:image"\s+content="([^"]+)"', html)
         if not match:
+            logger.error("Alta: fant ikke og:image i HTML")
             _api_call(token, "sendMessage", {
                 "chat_id": chat_id,
                 "text": "⚠️ Fant ikke bilde-URL fra Alta-kameraet.",
@@ -385,16 +388,20 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
             return
 
         image_url = match.group(1)
+        logger.info(f"Alta: bilde-URL = {image_url}")
+
         # Hent tidspunkt fra URL (format: .../large/HH-MM.jpg)
         time_match = re.search(r'/(\d{2})-(\d{2})\.jpg', image_url)
         time_str = f"{time_match.group(1)}:{time_match.group(2)}" if time_match else "nå"
 
         # Hent bildet
+        logger.info(f"Alta: henter bilde ({time_str})...")
         req = urllib.request.Request(image_url, headers={"User-Agent": "oil-alert-bot/1.0"})
         image_data = urllib.request.urlopen(req, timeout=15).read()
+        logger.info(f"Alta: bilde hentet ({len(image_data)} bytes)")
 
         if len(image_data) < 1000:
-            raise Exception("Bildet er for lite")
+            raise Exception(f"Bildet er for lite ({len(image_data)} bytes)")
 
         # Split 360° panorama i 3 deler
         from io import BytesIO
@@ -402,6 +409,7 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
 
         img = Image.open(BytesIO(image_data))
         w, h = img.size
+        logger.info(f"Alta: bilde {w}x{h}, splitter i 3...")
         part_w = w // 3
         parts = [
             ("Vest", img.crop((0, 0, part_w, h))),
@@ -431,15 +439,16 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
             req2 = urllib.request.Request(api_url, data=body, headers={
                 "Content-Type": f"multipart/form-data; boundary={boundary}",
             })
-            urllib.request.urlopen(req2, timeout=15)
+            resp = urllib.request.urlopen(req2, timeout=15)
+            logger.info(f"Alta: sendt {label} ({len(part_data)} bytes)")
 
-        logger.info(f"Alta-bilder sendt (3 deler): {time_str}")
+        logger.info(f"Alta: alle 3 deler sendt OK ({time_str})")
 
     except Exception as e:
-        logger.error(f"Alta-bilde feilet: {e}")
+        logger.error(f"Alta-bilde feilet: {type(e).__name__}: {e}")
         _api_call(token, "sendMessage", {
             "chat_id": chat_id,
-            "text": "⚠️ Klarte ikke hente bilde fra Alta akkurat nå.",
+            "text": f"⚠️ Klarte ikke hente bilde fra Alta: {type(e).__name__}",
         })
 
 
