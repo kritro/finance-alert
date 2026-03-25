@@ -317,7 +317,7 @@ def _handle_bmi_command(token: str, chat_id: str) -> None:
 
     body = json.dumps({
         "dimensions": [
-            {"code": "GEO", "filter": "item", "values": ["0", "3905", "4601", "5601"]},
+            {"code": "GEO", "filter": "item", "values": ["0", "39", "46", "56"]},
             {"code": "AAR", "filter": "bottom", "values": ["1"]},
             {"code": "KJONN", "filter": "item", "values": ["0"]},
             {"code": "ALDER", "filter": "item", "values": ["17_17"]},
@@ -362,12 +362,12 @@ def _handle_bmi_command(token: str, chat_id: str) -> None:
             name = geo_labels[geo_code]
             if name == "Hele landet":
                 name = "🇳🇴 Norge"
-            elif name == "Tønsberg":
-                name = "📍 Tønsberg"
-            elif name == "Bergen":
-                name = "📍 Bergen"
-            elif name == "Alta":
-                name = "📍 Alta"
+            elif "Vestfold" in name:
+                name = "📍 Vestfold"
+            elif "Vestland" in name:
+                name = "📍 Vestland"
+            elif "Finnmark" in name:
+                name = "📍 Finnmark"
 
             overvekt = values[i * stride_geo]
             fedme = values[i * stride_geo + 1]
