@@ -282,7 +282,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 elif text in ("/iss", "iss"):
                     _handle_fun_command(token, chat_id, "iss")
                 elif text in ("/nordlys", "nordlys", "/aurora"):
-                    _handle_fun_command(token, chat_id, "nordlys")
+                    _pending_location[chat_id] = "nordlys"
+                    _request_location(token, chat_id, "🌌 Del posisjonen din så sjekker jeg nordlys-sjansen!")
                 elif text in ("/fakta", "fakta", "/fact"):
                     _handle_fun_command(token, chat_id, "fakta")
                 elif text in ("/andreasnese", "andreasnese"):
@@ -367,6 +368,13 @@ def run_command_listener(token: str, chat_id: str) -> None:
                         _api_call(token, "sendMessage", {
                             "chat_id": chat_id,
                             "text": geology(lat, lon),
+                            "reply_markup": json.dumps({"remove_keyboard": True}),
+                        })
+                    elif cmd == "nordlys":
+                        from fun import aurora_forecast_gps
+                        _api_call(token, "sendMessage", {
+                            "chat_id": chat_id,
+                            "text": aurora_forecast_gps(lat, lon),
                             "reply_markup": json.dumps({"remove_keyboard": True}),
                         })
                     elif cmd == "navn":

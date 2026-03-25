@@ -60,7 +60,12 @@ def iss_status() -> str:
 
 
 def aurora_forecast() -> str:
-    """Nordlys-varsling for Revetal/Tønsberg."""
+    """Nordlys-varsling (fallback uten GPS)."""
+    return aurora_forecast_gps(REVETAL_LAT, REVETAL_LON)
+
+
+def aurora_forecast_gps(lat: float, lon: float) -> str:
+    """Nordlys-varsling basert på GPS-posisjon."""
     try:
         req = urllib.request.Request(
             "https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json",
@@ -76,30 +81,47 @@ def aurora_forecast() -> str:
             except (ValueError, IndexError):
                 continue
 
-        # Vurdering for Sør-Norge (trenger Kp ~5+ for å se nordlys)
-        if kp_val >= 7:
-            verdict = "🟢 STOR SJANSE! Nordlys kan være synlig fra Revetal i natt!"
+        # Minimum Kp for å se nordlys avhenger av breddegrad
+        # 70°N: Kp 1-2, 65°N: Kp 3, 60°N: Kp 5, 55°N: Kp 7
+        if lat >= 70:
+            kp_needed = 2
+            region = "Nord-Norge"
+        elif lat >= 67:
+            kp_needed = 3
+            region = "Nordland/Troms"
+        elif lat >= 63:
+            kp_needed = 4
+            region = "Midt-Norge"
+        elif lat >= 59:
+            kp_needed = 5
+            region = "Sør-Norge"
+        else:
+            kp_needed = 7
+            region = "Sørlandet"
+
+        margin = kp_val - kp_needed
+
+        if margin >= 2:
+            verdict = f"🟢 STOR SJANSE for nordlys fra din posisjon!"
             emoji = "🌌"
-        elif kp_val >= 5:
-            verdict = "🟡 Mulig! Se mot nord hvis det er klart i kveld."
+        elif margin >= 0:
+            verdict = f"🟡 Mulig! Se mot nord hvis det er klart i kveld."
             emoji = "✨"
-        elif kp_val >= 3:
-            verdict = "🟠 Lite sannsynlig fra Revetal, men mulig i Nord-Norge."
+        elif margin >= -2:
+            verdict = f"🟠 Lite sannsynlig herfra. Trenger Kp {kp_needed}+, nå er det {kp_val:.0f}."
             emoji = "🔭"
         else:
-            verdict = "🔴 Ingen nordlys-aktivitet akkurat nå."
+            verdict = "🔴 Ingen nordlys-sjanse herfra akkurat nå."
             emoji = "😴"
 
         lines = [
             f"{emoji} NORDLYS-VARSLING",
+            f"📍 {lat:.1f}°N ({region})",
             "",
-            f"🧲 Kp-indeks: {kp_val:.1f} / 9.0",
-            f"📍 For Revetal/Tønsberg (59°N):",
+            f"🧲 Kp-indeks nå: {kp_val:.1f} / 9.0",
+            f"🎯 Trenger Kp {kp_needed}+ for din breddegrad",
             "",
             verdict,
-            "",
-            "ℹ️ Kp 5+ = synlig i Sør-Norge",
-            "ℹ️ Kp 7+ = synlig over hele Norge",
         ]
 
         return "\n".join(lines)
