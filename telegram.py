@@ -265,10 +265,18 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_fun_command(token, chat_id, "fakta")
                 elif text in ("/andreasnese", "andreasnese"):
                     _handle_image_command(token, chat_id, "andreasnese.png", "👃 Andreas Nese")
+                elif text in ("/dyr", "dyr"):
+                    # Send knapp for lokasjonsdeling
+                    _request_location(token, chat_id, "🐾 Del posisjonen din så finner jeg dyr i nærheten!")
                 elif text in ("/romfart", "romfart", "/space"):
                     _handle_fun_command(token, chat_id, "romfart")
                 elif text in ("/bmi", "bmi"):
                     _handle_bmi_command(token, chat_id)
+
+                # Sjekk om meldingen inneholder en lokasjon (GPS)
+                location = msg.get("location")
+                if location:
+                    _handle_location(token, chat_id, location["latitude"], location["longitude"])
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -309,6 +317,97 @@ def _handle_price_command(token: str, chat_id: str) -> None:
         "chat_id": chat_id,
         "text": "\n".join(lines),
     })
+
+
+def _request_location(token: str, chat_id: str, text: str) -> None:
+    """Sender en melding med knapp for å dele lokasjon."""
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "reply_markup": json.dumps({
+            "keyboard": [[{"text": "📍 Del min posisjon", "request_location": True}]],
+            "one_time_keyboard": True,
+            "resize_keyboard": True,
+        }),
+    }
+    _api_call(token, "sendMessage", payload)
+
+
+def _handle_location(token: str, chat_id: str, lat: float, lon: float) -> None:
+    """Henter dyreobservasjoner nær brukerens GPS-posisjon via GBIF."""
+    import urllib.request as _req
+
+    # Søk i radius ~5km rundt posisjonen
+    delta = 0.05  # ca 5km
+    url = (
+        f"https://api.gbif.org/v1/occurrence/search?"
+        f"decimalLatitude={lat - delta},{lat + delta}&"
+        f"decimalLongitude={lon - delta},{lon + delta}&"
+        f"country=NO&limit=15&orderBy=eventDate"
+    )
+
+    try:
+        req = _req.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        data = json.loads(_req.urlopen(req, timeout=10).read())
+
+        results = data.get("results", [])
+        total = data.get("count", 0)
+
+        if not results:
+            _api_call(token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": "🤷 Ingen observasjoner funnet i nærheten.",
+                "reply_markup": json.dumps({"remove_keyboard": True}),
+            })
+            return
+
+        # Dedupliser på artsnavn, behold siste observasjon per art
+        seen_species = {}
+        for r in results:
+            name = r.get("vernacularName") or r.get("species") or r.get("scientificName", "Ukjent")
+            if name not in seen_species:
+                seen_species[name] = r
+
+        lines = [
+            f"🐾 DYRELIV I NÆRHETEN ({total:,} obs totalt)",
+            f"📍 {lat:.3f}°N, {lon:.3f}°E",
+            "",
+        ]
+
+        for name, r in list(seen_species.items())[:10]:
+            date = (r.get("eventDate") or "")[:10]
+            latin = r.get("scientificName", "")
+            kingdom = r.get("kingdom", "")
+
+            if kingdom == "Animalia":
+                emoji = "🦌"
+            elif kingdom == "Plantae":
+                emoji = "🌿"
+            elif kingdom == "Fungi":
+                emoji = "🍄"
+            else:
+                emoji = "🔬"
+
+            line = f"{emoji} {name}"
+            if date:
+                line += f" ({date})"
+            lines.append(line)
+
+        lines.append(f"\nKilde: GBIF.org")
+
+        _api_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "\n".join(lines),
+            "reply_markup": json.dumps({"remove_keyboard": True}),
+        })
+
+    except Exception as e:
+        logger.error(f"Dyr-søk feilet: {e}")
+        _api_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "⚠️ Klarte ikke søke etter dyr akkurat nå.",
+            "reply_markup": json.dumps({"remove_keyboard": True}),
+        })
 
 
 def _handle_bmi_command(token: str, chat_id: str) -> None:
