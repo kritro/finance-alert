@@ -263,8 +263,9 @@ def run_once(seen, prune_every: int = 20, _run_count: list = [0]) -> int:
 # ──────────────────────────────────────────────
 
 def main() -> None:
-    from telegram import get_bot_info, send_startup_message, process_commands
+    from telegram import get_bot_info, send_startup_message, run_command_listener
     from seen import get_store
+    import threading
 
     load_config()
 
@@ -307,6 +308,14 @@ def main() -> None:
     except Exception as e:
         logger.warning(f"Klarte ikke sende oppstartsmelding: {e}")
 
+    # Start kommando-lytter i egen tråd (instant-svar)
+    cmd_thread = threading.Thread(
+        target=run_command_listener,
+        args=(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID),
+        daemon=True,
+    )
+    cmd_thread.start()
+
     # Første kjøring umiddelbart
     try:
         run_once(seen)
@@ -315,16 +324,10 @@ def main() -> None:
 
     # Scheduler-loop
     interval_seconds = POLL_INTERVAL_SECONDS
-    last_update_id = 0
     logger.info(f"Venter {POLL_INTERVAL_SECONDS}s til neste kjøring…")
 
     while True:
         time.sleep(interval_seconds)
-        try:
-            # Sjekk innkommende kommandoer
-            last_update_id = process_commands(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID, last_update_id)
-        except Exception as e:
-            logger.error(f"Kommando-sjekk feilet: {e}")
         try:
             run_once(seen)
         except KeyboardInterrupt:

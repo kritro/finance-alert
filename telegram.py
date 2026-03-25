@@ -209,46 +209,54 @@ def get_chat_id_from_updates(token: str) -> Optional[str]:
     return None
 
 
-def process_commands(token: str, chat_id: str, last_update_id: int = 0) -> int:
+def run_command_listener(token: str, chat_id: str) -> None:
     """
-    Sjekker etter innkommende kommandoer og svarer.
-    Returnerer siste update_id som er behandlet.
-
-    Støttede kommandoer:
-      /price   – nåværende Brent-pris
-      /status  – bot-status og statistikk
-      /help    – liste over kommandoer
+    Lytter etter innkommende kommandoer i en egen tråd.
+    Bruker Telegram long polling (blokkerer til ny melding kommer).
+    Svarer instant – ingen ventetid.
     """
-    result = _api_call(token, "getUpdates", {
-        "offset": last_update_id + 1,
-        "limit": 10,
-        "timeout": 0,
-    })
+    last_update_id = 0
 
-    if not result or not result.get("ok"):
-        return last_update_id
+    # Tøm gamle meldinger først
+    result = _api_call(token, "getUpdates", {"offset": -1, "limit": 1, "timeout": 0})
+    if result and result.get("ok") and result.get("result"):
+        last_update_id = result["result"][-1]["update_id"]
 
-    updates = result.get("result", [])
-    for update in updates:
-        update_id = update.get("update_id", 0)
-        last_update_id = max(last_update_id, update_id)
+    logger.info("Kommando-lytter startet (instant-svar aktivert)")
 
-        msg = update.get("message", {})
-        text = msg.get("text", "").strip().lower()
-        msg_chat_id = str(msg.get("chat", {}).get("id", ""))
+    while True:
+        try:
+            result = _api_call(token, "getUpdates", {
+                "offset": last_update_id + 1,
+                "limit": 10,
+                "timeout": 25,  # Long poll – venter opptil 25 sek på ny melding
+            }, timeout=30)
 
-        # Ignorer meldinger fra andre chatter
-        if msg_chat_id != chat_id:
-            continue
+            if not result or not result.get("ok"):
+                continue
 
-        if text in ("/price", "/pris", "pris", "price", "oil", "olje"):
-            _handle_price_command(token, chat_id)
-        elif text in ("/status", "status"):
-            _handle_status_command(token, chat_id)
-        elif text in ("/help", "help", "hjelp", "/hjelp"):
-            _handle_help_command(token, chat_id)
+            for update in result.get("result", []):
+                update_id = update.get("update_id", 0)
+                last_update_id = max(last_update_id, update_id)
 
-    return last_update_id
+                msg = update.get("message", {})
+                text = msg.get("text", "").strip().lower()
+                msg_chat_id = str(msg.get("chat", {}).get("id", ""))
+
+                if msg_chat_id != chat_id:
+                    continue
+
+                if text in ("/price", "/pris", "pris", "price", "oil", "olje"):
+                    _handle_price_command(token, chat_id)
+                elif text in ("/status", "status"):
+                    _handle_status_command(token, chat_id)
+                elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
+                    _handle_help_command(token, chat_id)
+
+        except Exception as e:
+            logger.error(f"Kommando-lytter feil: {e}")
+            import time
+            time.sleep(5)  # Vent litt før retry
 
 
 def _handle_price_command(token: str, chat_id: str) -> None:
