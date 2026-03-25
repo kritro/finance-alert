@@ -210,6 +210,10 @@ def get_chat_id_from_updates(token: str) -> Optional[str]:
     return None
 
 
+# Holder styr på hvilken kommando som venter på GPS
+_pending_location: dict[str, str] = {}
+
+
 def run_command_listener(token: str, chat_id: str) -> None:
     """
     Lytter etter innkommende kommandoer i en egen tråd.
@@ -266,8 +270,17 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 elif text in ("/andreasnese", "andreasnese"):
                     _handle_image_command(token, chat_id, "andreasnese.png", "👃 Andreas Nese")
                 elif text in ("/dyr", "dyr"):
-                    # Send knapp for lokasjonsdeling
+                    _pending_location[chat_id] = "dyr"
                     _request_location(token, chat_id, "🐾 Del posisjonen din så finner jeg dyr i nærheten!")
+                elif text in ("/buss", "buss"):
+                    _pending_location[chat_id] = "buss"
+                    _request_location(token, chat_id, "🚌 Del posisjonen din så finner jeg neste bussavgang!")
+                elif text in ("/luft", "luft"):
+                    _pending_location[chat_id] = "luft"
+                    _request_location(token, chat_id, "🌬️ Del posisjonen din så sjekker jeg luftkvaliteten!")
+                elif text in ("/lading", "lading"):
+                    _pending_location[chat_id] = "lading"
+                    _request_location(token, chat_id, "⚡ Del posisjonen din så finner jeg nærmeste elbil-lader!")
                 elif text in ("/romfart", "romfart", "/space"):
                     _handle_fun_command(token, chat_id, "romfart")
                 elif text in ("/bmi", "bmi"):
@@ -276,7 +289,31 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 # Sjekk om meldingen inneholder en lokasjon (GPS)
                 location = msg.get("location")
                 if location:
-                    _handle_location(token, chat_id, location["latitude"], location["longitude"])
+                    cmd = _pending_location.pop(chat_id, "dyr")
+                    lat, lon = location["latitude"], location["longitude"]
+                    if cmd == "dyr":
+                        _handle_location(token, chat_id, lat, lon)
+                    elif cmd == "buss":
+                        from gps_commands import nearest_departures
+                        _api_call(token, "sendMessage", {
+                            "chat_id": chat_id,
+                            "text": nearest_departures(lat, lon),
+                            "reply_markup": json.dumps({"remove_keyboard": True}),
+                        })
+                    elif cmd == "luft":
+                        from gps_commands import air_quality
+                        _api_call(token, "sendMessage", {
+                            "chat_id": chat_id,
+                            "text": air_quality(lat, lon),
+                            "reply_markup": json.dumps({"remove_keyboard": True}),
+                        })
+                    elif cmd == "lading":
+                        from gps_commands import nearest_chargers
+                        _api_call(token, "sendMessage", {
+                            "chat_id": chat_id,
+                            "text": nearest_chargers(lat, lon),
+                            "reply_markup": json.dumps({"remove_keyboard": True}),
+                        })
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -771,18 +808,27 @@ def _handle_status_command(token: str, chat_id: str) -> None:
 def _handle_help_command(token: str, chat_id: str) -> None:
     """Svarer med liste over kommandoer."""
     lines = [
-        "🤖 TILGJENGELIGE KOMMANDOER",
+        "🤖 KOMMANDOER",
         "",
-        "💰 /price – Brent-oljepris",
-        "🌬️ /bårdfjord – Vind på Bårdfjordneset",
-        "🌤️ /tønsberg – Vær og sjøtemp Tønsberg",
-        "🌉 /sotrabro – Trafikk-kamera Sotrabrua",
-        "🏔️ /alta – Panorama Alta havn",
-        "🛰️ /iss – Hvor er ISS nå?",
-        "🌌 /nordlys – Nordlys-varsling",
-        "🚀 /romfart – Din romreise i dag",
-        "🤓 /fakta – Tilfeldig fakta",
-        "⚙️ /status – Bot-status",
+        "📍 GPS-basert:",
+        "  /buss – Nærmeste avganger",
+        "  /dyr – Dyreliv i nærheten",
+        "  /luft – Luftkvalitet",
+        "  /lading – Nærmeste elbil-lader",
+        "",
+        "🌍 Steder:",
+        "  /tønsberg – Vær og sjøtemp",
+        "  /bårdfjord – Vind Bårdfjordneset",
+        "  /sotrabro – Trafikk-kamera",
+        "  /alta – Panorama Alta havn",
+        "",
+        "📊 Info:",
+        "  /price – Brent-oljepris",
+        "  /bmi – Overvekt-statistikk",
+        "  /iss – Hvor er ISS?",
+        "  /nordlys – Nordlys-varsling",
+        "  /romfart – Din romreise i dag",
+        "  /fakta – Tilfeldig fakta",
     ]
 
     _api_call(token, "sendMessage", {
