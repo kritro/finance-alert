@@ -263,6 +263,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_fun_command(token, chat_id, "nordlys")
                 elif text in ("/fakta", "fakta", "/fact"):
                     _handle_fun_command(token, chat_id, "fakta")
+                elif text in ("/andreasnese", "andreasnese"):
+                    _handle_image_command(token, chat_id, "andreasnese.png", "👃 Andreas Nese")
                 elif text in ("/romfart", "romfart", "/space"):
                     _handle_fun_command(token, chat_id, "romfart")
                 elif text in ("/status", "status"):
@@ -305,6 +307,44 @@ def _handle_price_command(token: str, chat_id: str) -> None:
         "chat_id": chat_id,
         "text": "\n".join(lines),
     })
+
+
+def _handle_image_command(token: str, chat_id: str, filename: str, caption: str) -> None:
+    """Sender et statisk bilde fra repo."""
+    import os
+    import uuid
+
+    # Finn bildefilen relativt til app-mappen
+    for path in [f"/app/{filename}", filename, f"./{filename}"]:
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                image_data = f.read()
+            break
+    else:
+        _api_call(token, "sendMessage", {"chat_id": chat_id, "text": "⚠️ Fant ikke bildet."})
+        return
+
+    boundary = uuid.uuid4().hex
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="photo"; filename="{filename}"\r\n'
+        f"Content-Type: image/png\r\n\r\n"
+    ).encode("utf-8") + image_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            f"https://api.telegram.org/bot{token}/sendPhoto",
+            data=body,
+            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+        )
+        urllib.request.urlopen(req, timeout=15)
+    except Exception as e:
+        logger.error(f"Bilde-sending feilet: {e}")
 
 
 def _handle_fun_command(token: str, chat_id: str, cmd: str) -> None:

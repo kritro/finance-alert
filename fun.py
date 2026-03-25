@@ -110,7 +110,7 @@ def aurora_forecast() -> str:
 
 
 def random_fact() -> str:
-    """Tilfeldig ubrukelig fakta."""
+    """Tilfeldig ubrukelig fakta på norsk."""
     try:
         req = urllib.request.Request(
             "https://uselessfacts.jsph.pl/api/v2/facts/random?language=en",
@@ -118,6 +118,21 @@ def random_fact() -> str:
         )
         data = json.loads(urllib.request.urlopen(req, timeout=10).read())
         fact = data.get("text", "Ingen fakta tilgjengelig")
+
+        # Oversett via enkel prompt til norsk (bruker MyMemory free API)
+        try:
+            import urllib.parse as _uparse
+            encoded = _uparse.quote(fact)
+            treq = urllib.request.Request(
+                f"https://api.mymemory.translated.net/get?q={encoded}&langpair=en|no",
+                headers={"User-Agent": "oil-alert-bot/1.0"},
+            )
+            tdata = json.loads(urllib.request.urlopen(treq, timeout=10).read())
+            translated = tdata.get("responseData", {}).get("translatedText", "")
+            if translated and "MYMEMORY" not in translated.upper():
+                fact = translated
+        except Exception:
+            pass  # Bruk engelsk som fallback
 
         return f"🤓 VISSTE DU AT...\n\n{fact}"
 
