@@ -255,6 +255,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_sotrabro_command(token, chat_id)
                 elif text in ("/alta", "alta"):
                     _handle_alta_command(token, chat_id)
+                elif text in ("/tønsberg", "tønsberg", "/tonsberg", "tonsberg"):
+                    _handle_tonsberg_command(token, chat_id)
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -295,6 +297,69 @@ def _handle_price_command(token: str, chat_id: str) -> None:
         "chat_id": chat_id,
         "text": "\n".join(lines),
     })
+
+
+def _handle_tonsberg_command(token: str, chat_id: str) -> None:
+    """Vær og sjøtemperatur for Tønsberg/Revetal."""
+    import urllib.request as _req
+    import json as _json
+
+    lines = ["🌤️ TØNSBERG / REVETAL – Akkurat nå", ""]
+
+    # Vær
+    try:
+        r = _req.Request(
+            "https://www.yr.no/api/v0/locations/1-46918/forecast/currenthour",
+            headers={"User-Agent": "oil-alert-bot/1.0"},
+        )
+        data = _json.loads(_req.urlopen(r, timeout=10).read())
+        temp = data["temperature"]["value"]
+        feels = data["temperature"]["feelsLike"]
+        wind_speed = data["wind"]["speed"]
+        wind_gust = data["wind"]["gust"]
+        wind_dir = data["wind"]["direction"]
+        precip = data["precipitation"]["value"]
+        symbol = data.get("symbolCode", {}).get("next1Hour", "")
+
+        weather_emojis = {
+            "clearsky": "☀️", "fair": "🌤️", "partlycloudy": "⛅",
+            "cloudy": "☁️", "rain": "🌧️", "heavyrain": "🌧️🌧️",
+            "lightrain": "🌦️", "sleet": "🌨️", "snow": "❄️",
+            "heavysnow": "❄️❄️", "fog": "🌫️", "thunder": "⛈️",
+        }
+        base_symbol = symbol.replace("_day", "").replace("_night", "").replace("_polartwilight", "")
+        emoji = weather_emojis.get(base_symbol, "🌡️")
+
+        from weather import _degrees_to_direction, _wind_description
+        wind_dir_str = _degrees_to_direction(wind_dir)
+        wind_desc = _wind_description(wind_speed)
+
+        lines += [
+            f"{emoji} {temp:.1f}°C (føles som {feels}°C)",
+            f"💨 {wind_speed:.1f} m/s fra {wind_dir_str}, kast {wind_gust:.1f} m/s ({wind_desc})",
+        ]
+        if precip > 0:
+            lines.append(f"🌧️ Nedbør: {precip:.1f} mm neste time")
+        else:
+            lines.append("☂️ Opphold neste time")
+    except Exception as e:
+        lines.append(f"⚠️ Klarte ikke hente vær: {e}")
+
+    # Sjøtemperatur
+    try:
+        r = _req.Request(
+            "https://www.yr.no/api/v0/locations/1-46918/nearestwatertemperatures",
+            headers={"User-Agent": "oil-alert-bot/1.0"},
+        )
+        data = _json.loads(_req.urlopen(r, timeout=10).read())
+        nearest = data["_embedded"]["nearestLocations"][0]
+        sea_temp = nearest["temperature"]
+        sea_name = nearest["location"]["name"]
+        lines += ["", f"🌊 Sjøtemperatur ({sea_name}): {sea_temp:.1f}°C"]
+    except Exception:
+        pass
+
+    _api_call(token, "sendMessage", {"chat_id": chat_id, "text": "\n".join(lines)})
 
 
 def _handle_alta_command(token: str, chat_id: str) -> None:
@@ -452,9 +517,10 @@ def _handle_help_command(token: str, chat_id: str) -> None:
         "",
         "/price – Nåværende Brent-pris",
         "/bårdfjord – Vind på Bårdfjordneset",
+        "/tønsberg – Vær og sjøtemperatur Tønsberg",
         "/sotrabro – Live-bilde fra Sotrabrua",
-        "/alta – Live 360° panorama fra Port of Alta",
-        "/status – Bot-status og statistikk",
+        "/alta – Live 360° panorama fra Alta havn",
+        "/status – Bot-status",
         "/help – Denne meldingen",
         "",
         "Du kan også bare skrive: pris, olje, bårdfjord, sotrabro, alta",
