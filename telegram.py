@@ -267,6 +267,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_image_command(token, chat_id, "andreasnese.png", "👃 Andreas Nese")
                 elif text in ("/romfart", "romfart", "/space"):
                     _handle_fun_command(token, chat_id, "romfart")
+                elif text in ("/bmi", "bmi"):
+                    _handle_bmi_command(token, chat_id)
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -307,6 +309,87 @@ def _handle_price_command(token: str, chat_id: str) -> None:
         "chat_id": chat_id,
         "text": "\n".join(lines),
     })
+
+
+def _handle_bmi_command(token: str, chat_id: str) -> None:
+    """Henter overvekt-statistikk fra FHI for Tønsberg, Bergen og Alta."""
+    import urllib.request as _req
+
+    body = json.dumps({
+        "dimensions": [
+            {"code": "GEO", "filter": "item", "values": ["0", "3905", "4601", "5601"]},
+            {"code": "AAR", "filter": "bottom", "values": ["1"]},
+            {"code": "KJONN", "filter": "item", "values": ["0"]},
+            {"code": "ALDER", "filter": "item", "values": ["17_17"]},
+            {"code": "KMI_KAT", "filter": "item", "values": ["overv_inkl_fedme", "fedme"]},
+            {"code": "MEASURE_TYPE", "filter": "item", "values": ["RATE"]},
+        ],
+        "response": {"format": "json-stat2"},
+    }).encode("utf-8")
+
+    try:
+        req = _req.Request(
+            "https://statistikk-data.fhi.no/api/open/v1/nokkel/Table/388/data",
+            data=body,
+            headers={"User-Agent": "oil-alert-bot/1.0", "Content-Type": "application/json"},
+        )
+        data = json.loads(_req.urlopen(req, timeout=10).read())
+
+        # Parse json-stat2
+        geo_labels = data["dimension"]["GEO"]["category"]["label"]
+        geo_index = data["dimension"]["GEO"]["category"]["index"]
+        kmi_index = data["dimension"]["KMI_KAT"]["category"]["index"]
+        kmi_labels = data["dimension"]["KMI_KAT"]["category"]["label"]
+        year_labels = data["dimension"]["AAR"]["category"]["label"]
+        year = list(year_labels.values())[0]
+        values = data["value"]
+        sizes = data["size"]
+
+        # Values layout: GEO × AAR × KJONN × ALDER × KMI_KAT × MEASURE
+        # sizes: [4, 1, 1, 1, 2, 1] -> stride for GEO = 2, KMI_KAT = 1
+        stride_kmi = 1
+        stride_geo = len(kmi_index) * stride_kmi
+
+        lines = [
+            f"⚖️ OVERVEKT BLANT 17-ÅRINGER ({year})",
+            "Kilde: FHI / Vernepliktsdata",
+            "",
+            f"{'Kommune':<14} {'Overvekt':>10} {'Fedme':>8}",
+            f"{'─' * 14} {'─' * 10} {'─' * 8}",
+        ]
+
+        for i, geo_code in enumerate(geo_index):
+            name = geo_labels[geo_code]
+            if name == "Hele landet":
+                name = "🇳🇴 Norge"
+            elif name == "Tønsberg":
+                name = "📍 Tønsberg"
+            elif name == "Bergen":
+                name = "📍 Bergen"
+            elif name == "Alta":
+                name = "📍 Alta"
+
+            overvekt = values[i * stride_geo]
+            fedme = values[i * stride_geo + 1]
+
+            if overvekt is not None:
+                lines.append(f"{name:<14} {overvekt:>9.1f}% {fedme:>7.1f}%")
+            else:
+                lines.append(f"{name:<14} {'N/A':>10} {'N/A':>8}")
+
+        lines += [
+            "",
+            "Overvekt = BMI > 25, Fedme = BMI > 30",
+        ]
+
+        _api_call(token, "sendMessage", {"chat_id": chat_id, "text": "\n".join(lines)})
+
+    except Exception as e:
+        logger.error(f"BMI feilet: {type(e).__name__}: {e}")
+        _api_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "⚠️ Klarte ikke hente BMI-data fra FHI.",
+        })
 
 
 def _handle_image_command(token: str, chat_id: str, filename: str, caption: str) -> None:
