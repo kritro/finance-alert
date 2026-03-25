@@ -257,6 +257,14 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_alta_command(token, chat_id)
                 elif text in ("/tønsberg", "tønsberg", "/tonsberg", "tonsberg"):
                     _handle_tonsberg_command(token, chat_id)
+                elif text in ("/iss", "iss"):
+                    _handle_fun_command(token, chat_id, "iss")
+                elif text in ("/nordlys", "nordlys", "/aurora"):
+                    _handle_fun_command(token, chat_id, "nordlys")
+                elif text in ("/fakta", "fakta", "/fact"):
+                    _handle_fun_command(token, chat_id, "fakta")
+                elif text in ("/romfart", "romfart", "/space"):
+                    _handle_fun_command(token, chat_id, "romfart")
                 elif text in ("/status", "status"):
                     _handle_status_command(token, chat_id)
                 elif text in ("/help", "help", "hjelp", "/hjelp", "/start"):
@@ -297,6 +305,22 @@ def _handle_price_command(token: str, chat_id: str) -> None:
         "chat_id": chat_id,
         "text": "\n".join(lines),
     })
+
+
+def _handle_fun_command(token: str, chat_id: str, cmd: str) -> None:
+    """Håndterer morsomme kommandoer."""
+    from fun import iss_status, aurora_forecast, random_fact, space_travel
+
+    handlers = {
+        "iss": iss_status,
+        "nordlys": aurora_forecast,
+        "fakta": random_fact,
+        "romfart": space_travel,
+    }
+    fn = handlers.get(cmd)
+    if fn:
+        msg = fn()
+        _api_call(token, "sendMessage", {"chat_id": chat_id, "text": msg})
 
 
 def _handle_tonsberg_command(token: str, chat_id: str) -> None:
@@ -525,17 +549,18 @@ def _handle_status_command(token: str, chat_id: str) -> None:
 def _handle_help_command(token: str, chat_id: str) -> None:
     """Svarer med liste over kommandoer."""
     lines = [
-        "🛢️ TILGJENGELIGE KOMMANDOER",
+        "🤖 TILGJENGELIGE KOMMANDOER",
         "",
-        "/price – Nåværende Brent-pris",
-        "/bårdfjord – Vind på Bårdfjordneset",
-        "/tønsberg – Vær og sjøtemperatur Tønsberg",
-        "/sotrabro – Live-bilde fra Sotrabrua",
-        "/alta – Live 360° panorama fra Alta havn",
-        "/status – Bot-status",
-        "/help – Denne meldingen",
-        "",
-        "Du kan også bare skrive: pris, olje, bårdfjord, sotrabro, alta",
+        "💰 /price – Brent-oljepris",
+        "🌬️ /bårdfjord – Vind på Bårdfjordneset",
+        "🌤️ /tønsberg – Vær og sjøtemp Tønsberg",
+        "🌉 /sotrabro – Trafikk-kamera Sotrabrua",
+        "🏔️ /alta – Panorama Alta havn",
+        "🛰️ /iss – Hvor er ISS nå?",
+        "🌌 /nordlys – Nordlys-varsling",
+        "🚀 /romfart – Din romreise i dag",
+        "🤓 /fakta – Tilfeldig fakta",
+        "⚙️ /status – Bot-status",
     ]
 
     _api_call(token, "sendMessage", {
