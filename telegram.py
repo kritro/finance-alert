@@ -261,6 +261,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_webcam_url_command(token, chat_id, "https://ollebukta.no/Ollebukta.jpg", "⛵ Ollebukta, Tønsberg")
                 elif text in ("/tønsbergilene", "tønsbergilene", "/ilene"):
                     _handle_youtube_live_command(token, chat_id, "@fuglekamerailene", "🐦 Fuglekamera Ilene, Tønsberg")
+                elif text in ("/bergenpuddefjord", "bergenpuddefjord"):
+                    _handle_webcam_url_command(token, chat_id, "https://btweb.vosskom.no/bt_puddefjordsbroen.jpg", "🌉 Puddefjordsbroen, Bergen")
                 elif text in ("/alta", "alta"):
                     _handle_alta_command(token, chat_id)
                 elif text in ("/tønsberg", "tønsberg", "/tonsberg", "tonsberg"):
