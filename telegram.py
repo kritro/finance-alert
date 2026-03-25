@@ -298,6 +298,9 @@ def run_command_listener(token: str, chat_id: str) -> None:
                 elif text in ("/uv", "uv"):
                     _pending_location[chat_id] = "uv"
                     _request_location(token, chat_id, "☀️ Del posisjonen din så sjekker jeg UV-strålingen!")
+                elif text in ("/webcam", "webcam"):
+                    _pending_location[chat_id] = "webcam"
+                    _request_location(token, chat_id, "📷 Del posisjonen din så finner jeg nærmeste webkamera!")
                 elif text in ("/navn", "navn"):
                     _pending_location[chat_id] = "navn"
                     _request_location(token, chat_id, "👶 Del posisjonen din så viser jeg populære babynavn!")
@@ -350,6 +353,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                             "text": uv_index(lat, lon),
                             "reply_markup": json.dumps({"remove_keyboard": True}),
                         })
+                    elif cmd == "webcam":
+                        _handle_nearest_webcam(token, chat_id, lat, lon)
                     elif cmd == "navn":
                         from gps_commands import format_names_report
                         _api_call(token, "sendMessage", {
@@ -766,6 +771,100 @@ def _handle_alta_command(token: str, chat_id: str) -> None:
         _api_call(token, "sendMessage", {
             "chat_id": chat_id,
             "text": "⚠️ Klarte ikke prosessere Alta-bilde.",
+        })
+
+
+def _handle_nearest_webcam(token: str, chat_id: str, lat: float, lon: float) -> None:
+    """Finner og sender bilde fra nærmeste webkamera via Yr.no."""
+    import urllib.request
+    import uuid
+
+    try:
+        # Finn nærmeste Yr-lokasjon
+        url = f"https://www.yr.no/api/v0/locations/search?lat={lat}&lon={lon}&accuracy=100000&language=nb"
+        req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        data = json.loads(urllib.request.urlopen(req, timeout=8).read())
+        locs = data.get("_embedded", {}).get("location", [])
+
+        if not locs:
+            _api_call(token, "sendMessage", {
+                "chat_id": chat_id,
+                "text": "⚠️ Fant ingen lokasjon i nærheten.",
+                "reply_markup": json.dumps({"remove_keyboard": True}),
+            })
+            return
+
+        # Prøv lokasjonene til vi finner en med kameraer
+        for loc in locs[:5]:
+            loc_id = loc["id"]
+            cam_url = f"https://www.yr.no/api/v0/locations/{loc_id}/cameras"
+            req2 = urllib.request.Request(cam_url, headers={"User-Agent": "oil-alert-bot/1.0"})
+            cam_data = json.loads(urllib.request.urlopen(req2, timeout=8).read())
+            cameras = cam_data.get("cameras", [])
+
+            if cameras:
+                cam = cameras[0]
+                cam_name = cam.get("name", "Ukjent")
+                cam_dist = cam.get("distance", 0)
+                views = cam.get("views", [])
+
+                if not views:
+                    continue
+
+                img_url = views[0].get("images", {}).get("large", {}).get("url", "")
+                if not img_url:
+                    continue
+
+                # Hent bildet
+                req3 = urllib.request.Request(img_url, headers={"User-Agent": "oil-alert-bot/1.0"})
+                image_data = urllib.request.urlopen(req3, timeout=10).read()
+
+                if len(image_data) < 5000:
+                    continue
+
+                dist_km = cam_dist / 1000 if cam_dist > 1000 else 0
+                if dist_km > 0:
+                    caption = f"📷 {cam_name} ({dist_km:.1f} km unna)"
+                else:
+                    caption = f"📷 {cam_name} ({cam_dist:.0f}m unna)"
+
+                boundary = uuid.uuid4().hex
+                body = (
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="chat_id"\r\n\r\n{chat_id}\r\n'
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="caption"\r\n\r\n{caption}\r\n'
+                    f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="photo"; filename="webcam.jpg"\r\n'
+                    f"Content-Type: image/jpeg\r\n\r\n"
+                ).encode("utf-8") + image_data + f"\r\n--{boundary}--\r\n".encode("utf-8")
+
+                req4 = urllib.request.Request(
+                    f"https://api.telegram.org/bot{token}/sendPhoto",
+                    data=body,
+                    headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
+                )
+                urllib.request.urlopen(req4, timeout=15)
+
+                _api_call(token, "sendMessage", {
+                    "chat_id": chat_id,
+                    "text": f"Kilde: Yr.no",
+                    "reply_markup": json.dumps({"remove_keyboard": True}),
+                })
+                return
+
+        _api_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "📷 Fant ingen webkameraer i nærheten.",
+            "reply_markup": json.dumps({"remove_keyboard": True}),
+        })
+
+    except Exception as e:
+        logger.error(f"Webcam-søk feilet: {e}")
+        _api_call(token, "sendMessage", {
+            "chat_id": chat_id,
+            "text": "⚠️ Klarte ikke finne webkamera.",
+            "reply_markup": json.dumps({"remove_keyboard": True}),
         })
 
 
