@@ -264,6 +264,17 @@ def main() -> None:
     seen = get_store()
     logger.info(f"SeenStore: {seen.stats()}")
 
+    # Vis innhold i DATA_DIR
+    from pathlib import Path
+    data_dir = Path(os.getenv("DATA_DIR", "./data"))
+    if data_dir.exists():
+        files = list(data_dir.iterdir())
+        logger.info(f"DATA_DIR ({data_dir}): {len(files)} filer")
+        for f in files:
+            logger.info(f"  {f.name} ({f.stat().st_size} bytes)")
+    else:
+        logger.info(f"DATA_DIR ({data_dir}): finnes ikke ennå")
+
     # Oppstartsmelding til Telegram
     try:
         send_startup_message(TELEGRAM_TOKEN, TELEGRAM_CHAT_ID)
