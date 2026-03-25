@@ -1,162 +1,95 @@
-# 🛢️ Oljepris-varsler via Telegram
+# 🛢️ Finance Alert + Info Bot
 
-En lett Python-bot som overvåker internasjonale nyhetskilder og sender deg Telegram-varsler
-når oljeprissensitive nyheter publiseres – geopolitikk, OPEC-beslutninger, Hormuz-spenninger, Iran-sanksjoner og mer.
+To Telegram-botter bygget i Python:
+- **@TrondAlertBot** – Push-varsler for oljeprissensitive nyheter, prisendringer og Trump Truth Social
+- **@Trondinfobot** – On-demand info med 32 kommandoer (GPS, webkameraer, vær, geologi, moro)
 
-**Ingen API-nøkler nødvendig** (bortsett fra Telegram-boten). Gratis å kjøre på Railway.
-
----
-
-## Hva den overvåker
-
-**RSS-feeds (oppdateres automatisk):**
-- Reuters Business / Energy
-- AP News (Business + World)
-- OilPrice.com
-- S&P Global / Platts Commodity Insights
-- OPEC pressemeldinger
-- Al Jazeera (Midtøsten)
-- EIA (U.S. Energy Information Administration)
-- Rigzone
-- Financial Times
-- The Guardian Energy
-
-**Twitter/X via Nitter RSS (ingen API-nøkkel):**
-- Søk: `brent crude`, `oil price`, `OPEC production`, `Iran sanctions oil`, `Hormuz strait`, ...
-- Kontoer: `@OilPrice_com`, `@EIAgov`, `@OPECSecretariat`, `@RigzoneNews`
+Deployet på Railway (gratis tier), poller hvert 30. sekund.
 
 ---
 
-## Oppsett (ca. 10 minutter)
+## Alert-boten (@TrondAlertBot)
 
-### Steg 1 – Opprett Telegram-bot (2 min)
+Sender automatiske varsler til Telegram for:
 
-1. Åpne Telegram og søk etter **@BotFather**
-2. Send `/newbot`
-3. Velg et navn (f.eks. `Min Oljepris Bot`)
-4. Velg et brukernavn (f.eks. `min_oil_alert_bot`)
-5. BotFather gir deg et **token** som ser slik ut: `1234567890:ABCdef...`
-6. **Kopier tokenet** – du trenger det senere
-
-### Steg 2 – Finn din Chat ID (1 min)
-
-1. Start din nye bot i Telegram: søk etter den og send `/start`
-2. Kjør dette lokalt:
-   ```bash
-   TELEGRAM_TOKEN=<ditt-token> python telegram.py
-   ```
-3. Du får din **Chat ID** – kopier den
-
-### Steg 3 – Test lokalt (valgfritt)
-
-```bash
-# Klon/naviger til mappen
-cd oil-alerts
-
-# Installer avhengigheter
-pip install -r requirements.txt
-
-# Kopier og fyll inn .env
-cp .env.example .env
-# Rediger .env med din TELEGRAM_TOKEN og TELEGRAM_CHAT_ID
-
-# Start boten
-python main.py
-```
-
-Du skal se logmeldinger og motta en oppstartsmelding på Telegram.
-
----
-
-## Deploy på Railway (gratis, alltid på)
-
-Railway gir 750 gratis CPU-timer per måned – nok til å kjøre én app 24/7 for alltid.
-
-### Steg 1 – Opprett GitHub-repo
-
-```bash
-cd oil-alerts
-git init
-git add .
-git commit -m "Initial commit"
-```
-
-Opprett et **privat** repo på [github.com/new](https://github.com/new) og push:
-```bash
-git remote add origin https://github.com/DITT-BRUKERNAVN/oil-alerts.git
-git push -u origin main
-```
-
-> ⚠️ Pass på at `.env` er i `.gitignore` (den er det allerede om du bruker filen under)
-
-### Steg 2 – Opprett Railway-prosjekt
-
-1. Gå til [railway.app](https://railway.app) og logg inn med GitHub
-2. Klikk **New Project → Deploy from GitHub repo**
-3. Velg `oil-alerts`-repoet ditt
-4. Railway oppdager automatisk Python og kjører `python main.py` (via `railway.toml`)
-
-### Steg 3 – Sett miljøvariabler i Railway
-
-I Railway-dashboardet, gå til **Variables** og legg til:
-
-| Variabel | Verdi |
+| Varsel | Beskrivelse |
 |---|---|
-| `TELEGRAM_TOKEN` | Tokenet fra BotFather |
-| `TELEGRAM_CHAT_ID` | Din Chat ID |
-| `POLL_INTERVAL_MINUTES` | `5` (valgfritt) |
-| `SCORE_THRESHOLD` | `40` (valgfritt) |
+| 📰 Oljerelevante nyheter | Score ≥ 40/100 fra 11 RSS-feeds |
+| 📈 Brent prisendring | Varsel ved ±$3.00 bevegelse |
+| 🇺🇸 Trump Truth Social | Oljerelevante poster + daglig digest |
+| 🕐 Morgenrapport 08:00 | Brent-pris norsk tid |
+| 🕐 Ettermiddagsrapport 16:00 | Brent-pris norsk tid |
 
-### Steg 4 (valgfritt) – Persistent lagring
+### Nyhetskilder (RSS)
 
-For at boten skal huske sendte artikler på tvers av restarter:
+OilPrice.com, CNBC Energy, CNBC Business, Al Jazeera, Guardian Energy, Middle East Eye, Yahoo Finance (XLE + Brent), NGI, Hellenic Shipping, Financial Times, Trump Truth Social.
 
-1. I Railway: **Add a Volume**, mount den på `/data`
-2. Legg til variabel: `DATA_DIR=/data`
+### Filtrering
 
-Uten dette vil boten "glemme" ved restart og potensielt sende duplikater.
+Nøkkelordbasert relevansscoring (0–100) med 60+ nøkkelord i kategorier:
+- Kjerneord: brent, crude, oil price, barrel, OPEC
+- Geopolitikk: Iran, Hormuz, sanctions, tanker, pipeline
+- Politikk: Trump, sanctions, embargo, nuclear deal
+- Marked: surge, spike, slump, futures, volatility
 
-### Steg 5 – Deploy
-
-Railway deployer automatisk når du pusher til `main`-branchen.
-Sjekk **Deployments → Logs** for å se at boten kjører.
+Negativt filter for irrelevante treff (olive oil, cooking oil, etc.)
 
 ---
 
-## Tuning
+## Info-boten (@Trondinfobot)
 
-### Justere terskelverdi
+32 kommandoer med instant svar. GPS-kommandoer bruker telefonens posisjon.
 
-I `.env` eller Railway-miljøvariabler:
-```
-SCORE_THRESHOLD=50   # Strengere: færre, men mer relevante varsler
-SCORE_THRESHOLD=30   # Løsere: flere varsler
-```
+### 📍 GPS-basert
 
-### Se hvilke nøkkelord som trigget
+| Kommando | API | Beskrivelse |
+|---|---|---|
+| `/buss` | Entur | Nærmeste holdeplass + neste avganger |
+| `/dyr` | GBIF | Dyreobservasjoner i nærheten |
+| `/luft` | Open-Meteo | Luftkvalitet (PM2.5, PM10, NO₂, O₃) |
+| `/lading` | Open Charge Map | Nærmeste elbil-ladere med kW |
+| `/uv` | Open-Meteo | UV-indeks med solråd |
+| `/navn` | SSB + Kartverket | Populære babynavn i ditt fylke |
+| `/webcam` | Yr.no | Nærmeste webkamera |
+| `/geologi` | Macrostrat | Bergarter og mineraler under deg |
 
-```
-DEBUG_SCORING=true
-```
+### 📷 Webkameraer
 
-Logger alle artikler over terskelen med hvilke nøkkelord som matchet.
+| Kommando | Sted |
+|---|---|
+| `/tønsbergbåt` | Ollebukta marina, Tønsberg |
+| `/tønsbergilene` | Fuglekamera Ilene (YouTube live) |
+| `/sotrabro` | Sotrabrua vest (Yr.no/Vegvesen) |
+| `/alta` | Alta havn 360° panorama (5 deler) |
+| `/talvik` | Talvik, Altafjorden |
+| `/sørøya` | Breivikbotn, Sørøya |
+| `/bergenfløyen` | Fløyen, Bergen |
+| `/bergenulriken` | Ulriken, Bergen |
+| `/bergenpuddefjord` | Puddefjordsbroen, Bergen |
+| `/bergenhavn` | Bergen havn |
+| `/oslorådhus` | Rådhuskaia, Oslo |
 
-### Deaktivere Nitter/Twitter
+### 🌍 Vær
 
-```
-INCLUDE_NITTER=false
-```
+| Kommando | API | Beskrivelse |
+|---|---|---|
+| `/tønsberg` | Yr.no | Vær, vind og sjøtemperatur |
+| `/bårdfjord` | Yr.no | Vindstyrke og temperatur Bårdfjordneset |
 
-### Legge til egne RSS-feeds
+### 📊 Info og moro
 
-Åpne `sources.py` og legg til en ny linje i `RSS_FEEDS`-diktet:
-```python
-"Min kilde": "https://eksempel.no/rss.xml",
-```
-
-### Legge til egne nøkkelord
-
-Åpne `filter.py` og legg til i den relevante gruppen. Vekten er 1–30.
+| Kommando | API | Beskrivelse |
+|---|---|---|
+| `/price` | Yahoo Finance | Brent-oljepris med endring |
+| `/bmi` | FHI | Overvekt-statistikk per fylke (17-åringer) |
+| `/navnoslo` | SSB | Topp babynavn Oslo |
+| `/navnvestland` | SSB | Topp babynavn Vestland |
+| `/navnfinnmark` | SSB | Topp babynavn Finnmark |
+| `/iss` | Where the ISS At | ISS-posisjon og avstand |
+| `/nordlys` | NOAA SWPC | Aurora Kp-indeks og synlighet |
+| `/romfart` | Beregnet | Reist gjennom verdensrommet i dag |
+| `/fakta` | Useless Facts + MyMemory | Tilfeldig fakta oversatt til norsk |
+| `/andreasnese` | – | 👃 |
 
 ---
 
@@ -164,55 +97,94 @@ INCLUDE_NITTER=false
 
 ```
 oil-alerts/
-├── main.py          # Hovedloop og scheduler
-├── sources.py       # RSS-henting fra alle kilder + Nitter
-├── filter.py        # Nøkkelordbasert relevansscoring (0–100)
-├── telegram.py      # Sender varsler via Telegram Bot API
-├── seen.py          # Husker allerede-sendte artikler (JSON-fil)
-├── requirements.txt # feedparser + python-dotenv
-├── railway.toml     # Railway deploy-konfig
-├── .env.example     # Mal for miljøvariabler
-└── .gitignore
+├── main.py            # Hovedloop, scheduler, planlagte rapporter
+├── sources.py         # RSS-feeds + Trump Truth Social + Nitter
+├── filter.py          # Nøkkelordbasert relevansscoring (0-100)
+├── price.py           # Brent-pris fra Yahoo Finance
+├── telegram.py        # Telegram API, meldinger, kommandolytter (1100+ linjer)
+├── weather.py         # Vind fra Yr.no (Bårdfjordneset)
+├── fun.py             # ISS, nordlys, romfart, fakta
+├── gps_commands.py    # GPS: buss, luft, lading, UV, geologi, navn
+├── seen.py            # Deduplisering (persistent JSON)
+├── andreasnese.png    # 👃
+├── Dockerfile         # Container-konfig
+├── railway.toml       # Railway deploy-konfig
+├── requirements.txt   # feedparser + Pillow
+└── .env.example       # Mal for miljøvariabler
 ```
 
 ---
 
-## .gitignore
+## Oppsett
 
-Opprett `.gitignore` med følgende innhold:
-```
-.env
-data/
-__pycache__/
-*.pyc
-.DS_Store
-```
+### Telegram-botter
+
+| Bot | Brukernavn | Funksjon |
+|---|---|---|
+| TrondAlertBot | @Oilalerttrondbot | Push-varsler |
+| TrondInfoBot | @Trondinfobot | On-demand kommandoer |
+
+### Railway-variabler
+
+| Variabel | Beskrivelse |
+|---|---|
+| `TELEGRAM_TOKEN` | Alert-bot token |
+| `TELEGRAM_CHAT_ID` | Din chat ID |
+| `INFO_BOT_TOKEN` | Info-bot token |
+| `POLL_INTERVAL_SECONDS` | Polling-intervall (default: 30) |
+| `SCORE_THRESHOLD` | Nyhets-terskel 0-100 (default: 40) |
+| `PRICE_ALERT_THRESHOLD` | Prisendring USD (default: 3.0) |
+| `MAX_ALERTS_PER_RUN` | Maks varsler per kjøring (default: 8) |
+| `INCLUDE_NITTER` | Twitter via Nitter (default: true) |
+| `DATA_DIR` | Persistent volum sti (default: ./data) |
+
+### Deploy
+
+1. Push til GitHub → Railway deployer automatisk
+2. Railway volum montert på `/data` for persistent lagring
+3. Dockerfile-basert deploy (ikke Nixpacks)
 
 ---
 
-## Feilsøking
+## API-er brukt (alle gratis, ingen nøkkel)
 
-**Boten starter men sender ingen varsler:**
-- Sjekk `SCORE_THRESHOLD` – prøv å sette den lavere (f.eks. 20) midlertidig
-- Aktiver `DEBUG_SCORING=true` for å se scoring
-- Noen RSS-feeds kan være nede – det er normalt
-
-**`Invalid token` fra Telegram:**
-- Kopier tokenet på nytt fra BotFather – unngå mellomrom
-
-**`Chat not found`:**
-- Sørg for at du har sendt `/start` til boten din i Telegram
-
-**Nitter fungerer ikke:**
-- Nitter-instanser er tidvis nede. Boten faller automatisk tilbake til kun RSS.
-- Sett `INCLUDE_NITTER=false` for å deaktivere helt
+| API | Brukt til |
+|---|---|
+| Yr.no | Vær, webkameraer, sjøtemperatur |
+| Yahoo Finance | Brent-oljepris |
+| Entur | Kollektivtransport |
+| Open-Meteo | Luftkvalitet, UV-indeks |
+| Open Charge Map | Elbil-ladere |
+| GBIF | Artsobs |
+| Macrostrat | Geologi |
+| NOAA SWPC | Aurora/nordlys Kp-indeks |
+| Where the ISS At | ISS-posisjon |
+| FHI Statistikk | Helsedata per fylke |
+| SSB | Navnestatistikk |
+| Kartverket | Kommune fra GPS |
+| MyMemory | Oversettelse til norsk |
+| Useless Facts | Tilfeldige fakta |
+| Trump Truth Social | Trumps poster |
+| Telegram Bot API | Meldinger og kommandoer |
 
 ---
 
-## Utvidelsesmuligheter
+## Legge til nye kommandoer
 
-- [ ] Legg til OpenAI for smartere sammendrag (GPT-3.5 er billig)
-- [ ] Overvåk Truth Social via RSS
-- [ ] Daglig oppsummering (kl. 08:00)
-- [ ] Filtrer på spesifikke prisbevegelser (hent Brent-pris fra API)
-- [ ] Slack-varsler i tillegg til Telegram
+### Nytt webkamera (1 linje)
+I `telegram.py`, legg til i `run_command_listener`:
+```python
+elif text in ("/mittsted",):
+    _handle_webcam_url_command(token, chat_id, "https://url-til-bilde.jpg", "📷 Mitt sted")
+```
+
+### Ny GPS-kommando
+1. Lag funksjonen i `gps_commands.py`
+2. Legg til kommando-trigger i `telegram.py` med `_pending_location`
+3. Legg til routing i GPS-handleren
+
+### Ny YouTube live-kamera
+```python
+elif text in ("/kanal",):
+    _handle_youtube_live_command(token, chat_id, "@youtube_kanal", "📷 Beskrivelse")
+```
