@@ -261,10 +261,8 @@ def run_command_listener(token: str, chat_id: str) -> None:
                     _handle_webcam_url_command(token, chat_id, "https://ollebukta.no/Ollebukta.jpg", "⛵ Ollebukta, Tønsberg")
                 elif text in ("/tønsbergilene", "tønsbergilene", "/ilene"):
                     _handle_youtube_live_command(token, chat_id, "@fuglekamerailene", "🐦 Fuglekamera Ilene, Tønsberg")
-                elif text in ("/bergenpuddefjord", "bergenpuddefjord"):
-                    _handle_webcam_url_command(token, chat_id, "https://btweb.vosskom.no/bt_puddefjordsbroen.jpg", "🌉 Puddefjordsbroen, Bergen")
-                elif text in ("/bergenfløyen", "bergenfløyen", "/bergenfloyen"):
-                    _handle_webcam_url_command(token, chat_id, "https://btweb.vosskom.no/bt_floyen_vest.jpg", "⛰️ Fløyen, Bergen")
+                elif text in ("/vidden", "vidden"):
+                    _handle_webcam_url_command(token, chat_id, "https://www.yr.no/webcams/1/2000/enbg/3.jpg", "🏔️ Vidden, Bergen")
                 elif text in ("/bergenulriken", "bergenulriken"):
                     _handle_webcam_url_command(token, chat_id, "https://images.stream.schibsted.media/users/bttts/images/a1dc26cff813577b947620d56f455247.jpg", "🏔️ Ulriken, Bergen")
                 elif text in ("/bergenhavn", "bergenhavn"):
@@ -1074,9 +1072,8 @@ def _handle_help_command(token: str, chat_id: str) -> None:
         "  /alta – Alta havn panorama",
         "  /talvik – Talvik, Altafjorden",
         "  /sørøya – Breivikbotn, Sørøya",
-        "  /bergenfløyen – Fløyen",
+        "  /vidden – Vidden, Bergen",
         "  /bergenulriken – Ulriken",
-        "  /bergenpuddefjord – Puddefjordsbroen",
         "  /bergenhavn – Bergen havn",
         "  /oslorådhus – Rådhuskaia Oslo",
         "",
