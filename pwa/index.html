@@ -352,7 +352,7 @@ async function loadCams() {
       card.className = 'cam-card';
       card.onclick = () => openCam(cam.id, cam.name);
       card.innerHTML = `
-        <img src="/api/webcam/${cam.id}/image" alt="${cam.name}" loading="lazy">
+        <img src="/api/webcam/${cam.id}/image" alt="${cam.name}" loading="lazy" onerror="this.style.display='none'">
         <div class="cam-label">${cam.name}</div>
       `;
       grid.appendChild(card);
@@ -386,8 +386,8 @@ function loadLive() {
   if (container.children.length > 0) return;
 
   const streams = [
-    {label: '🌍 ISS – Live fra rommet', embedUrl: 'https://www.youtube.com/embed/xRPjKQtRXR8?autoplay=0'},
-    {label: '🐦 Fuglekamera Ilene, Tønsberg', embedUrl: 'https://www.youtube.com/embed/live_stream?channel=UCbKmAIK_NR3PqW1oJjsKJnw&autoplay=0'},
+    {label: '🌍 ISS – Live fra rommet (NASA)', embedUrl: 'https://www.youtube.com/embed/fO9e9jnhYK8?autoplay=0'},
+    {label: '🐦 Fuglekamera Ilene, Tønsberg', embedUrl: 'https://www.youtube.com/embed/rPPwoUlIxSA?autoplay=0'},
   ];
 
   streams.forEach(s => {
