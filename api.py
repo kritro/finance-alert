@@ -464,7 +464,10 @@ def _get_alta_image_url() -> dict:
 
 @app.get("/api/webcam/{cam_id}/image")
 def api_webcam_image(cam_id: str):
-    """Proxyer webkamera-bilde (for å unngå CORS-problemer i PWA)."""
+    """Proxyer webkamera-bilde (for å unngå CORS-problemer i PWA).
+    NB: Denne er sync (def, ikke async) slik at FastAPI kjører den i threadpool
+    og urllib.request ikke blokkerer event-loopen.
+    """
     if cam_id == "alta":
         info = _get_alta_image_url()
         if not info.get("ok"):
@@ -477,7 +480,7 @@ def api_webcam_image(cam_id: str):
         img_url = cam["url"]
 
     try:
-        req = urllib.request.Request(img_url, headers={"User-Agent": "oil-alert-bot/1.0"})
+        req = urllib.request.Request(img_url, headers={"User-Agent": "Mozilla/5.0 (compatible; oil-alert-bot/1.0)"})
         image_data = urllib.request.urlopen(req, timeout=15).read()
         content_type = "image/jpeg"
         if img_url.endswith(".png"):
@@ -485,7 +488,7 @@ def api_webcam_image(cam_id: str):
         return Response(content=image_data, media_type=content_type,
                         headers={"Cache-Control": "public, max-age=30"})
     except Exception as e:
-        logger.error(f"Webcam proxy feilet: {e}")
+        logger.error(f"Webcam proxy feilet for {cam_id}: {e}")
         return Response(status_code=502)
 
 
