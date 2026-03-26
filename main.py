@@ -31,7 +31,7 @@ TELEGRAM_CHAT_ID: str = ""
 POLL_INTERVAL_SECONDS: int = 30
 
 # Score-terskel for varsler (0–100)
-SCORE_THRESHOLD: int = 40
+SCORE_THRESHOLD: int = 100
 
 # Prisendring-terskel i USD (varsler ved ±denne endringen)
 PRICE_ALERT_THRESHOLD: float = 3.0
