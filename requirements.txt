@@ -10,3 +10,7 @@ feedparser==6.0.11
 
 # Pillow (bildebehandling for Alta panorama)
 Pillow==11.1.0
+
+# Web API (PWA backend)
+fastapi==0.115.6
+uvicorn[standard]==0.34.0

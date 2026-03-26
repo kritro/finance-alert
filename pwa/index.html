@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TrondInfo</title>
+<link rel="manifest" href="/pwa/manifest.json">
+<link rel="icon" href="/pwa/icon-192.png">
+<link rel="apple-touch-icon" href="/pwa/icon-192.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0f172a;--card:#1e293b;--card2:#334155;--text:#e2e8f0;
+  --muted:#94a3b8;--accent:#3b82f6;--accent2:#60a5fa;
+  --green:#22c55e;--orange:#f97316;--red:#ef4444;
+  --radius:14px;--shadow:0 2px 12px rgba(0,0,0,.3)
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;background:var(--bg);color:var(--text)}
+body{padding-bottom:env(safe-area-inset-bottom,0)}
+a{color:var(--accent2);text-decoration:none}
+
+/* Header */
+.header{
+  position:sticky;top:0;z-index:10;
+  background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
+  padding:16px 20px 12px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+  backdrop-filter:blur(20px);
+}
+.header h1{font-size:22px;font-weight:700;letter-spacing:-.5px}
+.header .sub{font-size:12px;color:var(--muted);margin-top:2px}
+.gps-badge{
+  display:inline-flex;align-items:center;gap:4px;
+  font-size:11px;padding:3px 8px;border-radius:20px;
+  background:rgba(34,197,94,.15);color:var(--green);
+  margin-top:6px;
+}
+.gps-badge.off{background:rgba(249,115,22,.15);color:var(--orange)}
+.gps-badge .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+
+/* Tabs */
+.tabs{
+  display:flex;gap:6px;padding:8px 16px;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab{
+  flex-shrink:0;padding:8px 16px;border-radius:10px;
+  font-size:13px;font-weight:600;cursor:pointer;
+  background:var(--card);color:var(--muted);
+  border:1px solid transparent;transition:all .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.tab:active{transform:scale(.96)}
+
+/* Content area */
+.content{padding:12px 16px 100px}
+
+/* Section grid */
+.section-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 10px;padding-left:4px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.grid.cols-3{grid-template-columns:repeat(3,1fr)}
+
+/* Info card button */
+.btn{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:18px 8px;border-radius:var(--radius);
+  background:var(--card);border:1px solid rgba(255,255,255,.05);
+  cursor:pointer;transition:all .15s;
+  -webkit-tap-highlight-color:transparent;
+  font-family:inherit;color:var(--text);
+}
+.btn:active{transform:scale(.95);background:var(--card2)}
+.btn .icon{font-size:28px;line-height:1}
+.btn .label{font-size:12px;font-weight:600;color:var(--muted)}
+.btn.needs-gps .label::after{content:" 📍";font-size:10px}
+
+/* Result panel */
+.result{
+  display:none;margin-top:12px;padding:16px;border-radius:var(--radius);
+  background:var(--card);border:1px solid rgba(255,255,255,.06);
+  white-space:pre-wrap;font-size:14px;line-height:1.6;
+  animation:fadeIn .25s ease;
+}
+.result.show{display:block}
+.result .close-btn{
+  float:right;background:var(--card2);border:none;color:var(--muted);
+  width:28px;height:28px;border-radius:50%;cursor:pointer;
+  font-size:16px;line-height:28px;text-align:center;
+}
+.result .close-btn:active{background:var(--bg)}
+.result img{max-width:100%;border-radius:8px;margin:8px 0}
+
+/* Loading spinner */
+.loading{display:inline-block;width:20px;height:20px;border:2px solid var(--card2);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Webcam grid */
+.cam-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.cam-card{
+  border-radius:var(--radius);overflow:hidden;background:var(--card);
+  border:1px solid rgba(255,255,255,.05);cursor:pointer;transition:all .15s;
+}
+.cam-card:active{transform:scale(.97)}
+.cam-card img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.cam-card .cam-label{padding:8px 10px;font-size:11px;font-weight:600;color:var(--muted)}
+
+/* Webcam fullscreen overlay */
+.cam-overlay{
+  display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);
+  flex-direction:column;align-items:center;justify-content:center;padding:20px;
+}
+.cam-overlay.show{display:flex}
+.cam-overlay img{max-width:100%;max-height:70vh;border-radius:8px}
+.cam-overlay .cam-title{color:#fff;font-size:16px;font-weight:600;margin-top:12px}
+.cam-overlay .cam-close{
+  position:absolute;top:16px;right:16px;background:rgba(255,255,255,.15);
+  border:none;color:#fff;width:36px;height:36px;border-radius:50%;
+  font-size:20px;cursor:pointer;
+}
+.cam-overlay .cam-refresh{
+  margin-top:12px;padding:8px 20px;border-radius:8px;
+  background:var(--accent);color:#fff;border:none;font-size:14px;
+  font-weight:600;cursor:pointer;
+}
+
+/* Video section */
+.video-card{
+  border-radius:var(--radius);overflow:hidden;background:#000;
+  margin-bottom:12px;
+}
+.video-card iframe{width:100%;aspect-ratio:16/9;border:none;display:block}
+.video-card .vid-label{padding:10px 12px;font-size:13px;font-weight:600;color:var(--muted);background:var(--card)}
+
+/* Install prompt */
+.install-bar{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0));
+  background:linear-gradient(0deg,var(--bg) 0%,rgba(15,23,42,.95) 100%);
+  backdrop-filter:blur(10px);border-top:1px solid rgba(255,255,255,.06);
+  z-index:20;
+}
+.install-bar button{
+  width:100%;padding:14px;border-radius:12px;border:none;
+  background:var(--accent);color:#fff;font-size:15px;font-weight:700;
+  cursor:pointer;font-family:inherit;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🇳🇴 TrondInfo</h1>
+  <div class="sub">Lokal info fra åpne data</div>
+  <div class="gps-badge off" id="gpsBadge">
+    <span class="dot"></span>
+    <span id="gpsText">Henter posisjon…</span>
+  </div>
+</div>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="info">📊 Info</div>
+  <div class="tab" data-tab="cams">📷 Kamera</div>
+  <div class="tab" data-tab="live">📺 Live</div>
+</div>
+
+<!-- INFO TAB -->
+<div class="content" id="tab-info">
+  <div class="section-title">📍 Krever GPS</div>
+  <div class="grid" id="gpsButtons"></div>
+
+  <div class="section-title">🌍 Generelt</div>
+  <div class="grid" id="generalButtons"></div>
+
+  <div id="resultPanel" class="result">
+    <button class="close-btn" onclick="closeResult()">✕</button>
+    <div id="resultContent"></div>
+  </div>
+</div>
+
+<!-- CAMERA TAB -->
+<div class="content" id="tab-cams" style="display:none">
+  <div class="section-title">Webkameraer</div>
+  <div class="cam-grid" id="camGrid"></div>
+</div>
+
+<!-- LIVE TAB -->
+<div class="content" id="tab-live" style="display:none">
+  <div class="section-title">Live streams</div>
+  <div id="liveStreams"></div>
+</div>
+
+<!-- Webcam overlay -->
+<div class="cam-overlay" id="camOverlay">
+  <button class="cam-close" onclick="closeCam()">✕</button>
+  <img id="camImg" src="">
+  <div class="cam-title" id="camTitle"></div>
+  <button class="cam-refresh" onclick="refreshCam()">🔄 Oppdater</button>
+</div>
+
+<!-- Install bar -->
+<div class="install-bar" id="installBar">
+  <button onclick="installApp()">📱 Legg til på hjemskjerm</button>
+</div>
+
+<script>
+// ── State ──
+let gpsLat = null, gpsLon = null;
+let currentCamId = null;
+let deferredPrompt = null;
+
+// ── GPS commands ──
+const GPS_CMDS = [
+  {id:'buss', icon:'🚌', label:'Buss'},
+  {id:'dyr', icon:'🦌', label:'Dyreliv'},
+  {id:'luft', icon:'🌬️', label:'Luftkvalitet'},
+  {id:'lading', icon:'⚡', label:'Elbil-lader'},
+  {id:'uv', icon:'☀️', label:'UV-indeks'},
+  {id:'navn', icon:'👶', label:'Babynavn'},
+  {id:'webcam', icon:'📷', label:'Nærmeste cam'},
+  {id:'geologi', icon:'🪨', label:'Geologi'},
+  {id:'nordlys', icon:'🌌', label:'Nordlys'},
+];
+
+const GEN_CMDS = [
+  {id:'price', icon:'🛢️', label:'Brent-pris'},
+  {id:'iss', icon:'🛰️', label:'ISS'},
+  {id:'fakta', icon:'🤓', label:'Tilfeldig fakta'},
+  {id:'romfart', icon:'🚀', label:'Romreise'},
+  {id:'bmi', icon:'⚖️', label:'BMI-statistikk'},
+];
+
+// ── Build buttons ──
+function buildButtons() {
+  const gpsGrid = document.getElementById('gpsButtons');
+  GPS_CMDS.forEach(c => {
+    gpsGrid.innerHTML += `<button class="btn needs-gps" onclick="runCmd('${c.id}',true)">
+      <span class="icon">${c.icon}</span><span class="label">${c.label}</span>
+    </button>`;
+  });
+
+  const genGrid = document.getElementById('generalButtons');
+  GEN_CMDS.forEach(c => {
+    genGrid.innerHTML += `<button class="btn" onclick="runCmd('${c.id}',false)">
+      <span class="icon">${c.icon}</span><span class="label">${c.label}</span>
+    </button>`;
+  });
+}
+
+// ── Run API command ──
+async function runCmd(id, needsGps) {
+  const panel = document.getElementById('resultPanel');
+  const content = document.getElementById('resultContent');
+  panel.classList.add('show');
+  content.innerHTML = '<div class="loading"></div> Henter data…';
+  window.scrollTo({top: document.getElementById('resultPanel').offsetTop - 120, behavior: 'smooth'});
+
+  let url = '/api/' + id;
+  if (needsGps) {
+    if (!gpsLat) {
+      content.innerHTML = '⚠️ Venter på GPS-posisjon. Tillat posisjonsdeling i nettleseren.';
+      requestGPS();
+      return;
+    }
+    url += '?lat=' + gpsLat + '&lon=' + gpsLon;
+  }
+
+  try {
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.ok) {
+      let html = escapeHtml(data.text);
+      // Webcam nearest returns image_url
+      if (data.image_url) {
+        html = `<strong>${escapeHtml(data.name||'')}</strong>\n`;
+        html += `<img src="${data.image_url}" alt="webcam" onerror="this.src='/api/webcam/${id}/image'">`;
+      }
+      content.innerHTML = html;
+    } else {
+      content.innerHTML = '⚠️ ' + escapeHtml(data.error || 'Ukjent feil');
+    }
+  } catch (e) {
+    content.innerHTML = '⚠️ Nettverksfeil. Sjekk tilkoblingen.';
+  }
+}
+
+function closeResult() {
+  document.getElementById('resultPanel').classList.remove('show');
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── GPS ──
+function requestGPS() {
+  if (!navigator.geolocation) {
+    updateGpsBadge(false, 'GPS ikke støttet');
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      gpsLat = pos.coords.latitude;
+      gpsLon = pos.coords.longitude;
+      updateGpsBadge(true, `${gpsLat.toFixed(2)}°N, ${gpsLon.toFixed(2)}°E`);
+    },
+    err => {
+      updateGpsBadge(false, 'GPS avslått');
+    },
+    {enableHighAccuracy: true, timeout: 10000}
+  );
+}
+
+function updateGpsBadge(ok, text) {
+  const badge = document.getElementById('gpsBadge');
+  const label = document.getElementById('gpsText');
+  badge.classList.toggle('off', !ok);
+  label.textContent = text;
+}
+
+// ── Tabs ──
+document.getElementById('tabs').addEventListener('click', e => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  const id = tab.dataset.tab;
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  document.querySelectorAll('.content').forEach(c => c.style.display = 'none');
+  document.getElementById('tab-' + id).style.display = '';
+  if (id === 'cams') loadCams();
+  if (id === 'live') loadLive();
+});
+
+// ── Webcams ──
+async function loadCams() {
+  const grid = document.getElementById('camGrid');
+  if (grid.children.length > 0) return; // already loaded
+  grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px"><div class="loading"></div></div>';
+
+  try {
+    const resp = await fetch('/api/webcams');
+    const data = await resp.json();
+    grid.innerHTML = '';
+    data.webcams.forEach(cam => {
+      const card = document.createElement('div');
+      card.className = 'cam-card';
+      card.onclick = () => openCam(cam.id, cam.name);
+      card.innerHTML = `
+        <img src="/api/webcam/${cam.id}/image" alt="${cam.name}" loading="lazy">
+        <div class="cam-label">${cam.name}</div>
+      `;
+      grid.appendChild(card);
+    });
+  } catch (e) {
+    grid.innerHTML = '<div style="grid-column:1/-1;padding:20px;color:var(--muted)">⚠️ Klarte ikke laste kameraer</div>';
+  }
+}
+
+function openCam(id, name) {
+  currentCamId = id;
+  document.getElementById('camImg').src = '/api/webcam/' + id + '/image?t=' + Date.now();
+  document.getElementById('camTitle').textContent = name;
+  document.getElementById('camOverlay').classList.add('show');
+}
+
+function closeCam() {
+  document.getElementById('camOverlay').classList.remove('show');
+  currentCamId = null;
+}
+
+function refreshCam() {
+  if (!currentCamId) return;
+  const img = document.getElementById('camImg');
+  img.src = '/api/webcam/' + currentCamId + '/image?t=' + Date.now();
+}
+
+// ── Live streams ──
+function loadLive() {
+  const container = document.getElementById('liveStreams');
+  if (container.children.length > 0) return;
+
+  const streams = [
+    {label: '🌍 ISS – Live fra rommet', embedUrl: 'https://www.youtube.com/embed/xRPjKQtRXR8?autoplay=0'},
+    {label: '🐦 Fuglekamera Ilene, Tønsberg', embedUrl: 'https://www.youtube.com/embed/live_stream?channel=UCbKmAIK_NR3PqW1oJjsKJnw&autoplay=0'},
+  ];
+
+  streams.forEach(s => {
+    container.innerHTML += `
+      <div class="video-card">
+        <iframe src="${s.embedUrl}" allowfullscreen allow="autoplay;encrypted-media"></iframe>
+        <div class="vid-label">${s.label}</div>
+      </div>
+    `;
+  });
+}
+
+// ── PWA Install ──
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBar').style.display = 'block';
+});
+
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    document.getElementById('installBar').style.display = 'none';
+    deferredPrompt = null;
+  });
+}
+
+// ── Init ──
+buildButtons();
+requestGPS();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/pwa/sw.js');
+}
+</script>
+</body>
+</html>

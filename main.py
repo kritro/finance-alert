@@ -262,12 +262,41 @@ def run_once(seen, prune_every: int = 20, _run_count: list = [0]) -> int:
 # Hovedloop
 # ──────────────────────────────────────────────
 
+def start_web_server() -> None:
+    """Starter FastAPI/uvicorn i en egen tråd."""
+    import uvicorn
+    from api import app
+    from fastapi.staticfiles import StaticFiles
+    from pathlib import Path
+
+    # Monter PWA som statiske filer
+    pwa_dir = Path(__file__).parent / "pwa"
+    if not pwa_dir.exists():
+        pwa_dir = Path("/app/pwa")
+    if pwa_dir.exists():
+        app.mount("/pwa", StaticFiles(directory=str(pwa_dir)), name="pwa")
+
+        # Serve index.html på /
+        from fastapi.responses import FileResponse
+        @app.get("/")
+        async def serve_index():
+            return FileResponse(str(pwa_dir / "index.html"))
+
+    port = int(os.getenv("PORT", "8080"))
+    logger.info(f"Web-server starter på port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
+
+
 def main() -> None:
     from telegram import get_bot_info, send_startup_message, run_command_listener
     from seen import get_store
     import threading
 
     load_config()
+
+    # Start web-server (FastAPI) i egen tråd
+    web_thread = threading.Thread(target=start_web_server, daemon=True)
+    web_thread.start()
 
     # Info-bot token (separat bot for on-demand kommandoer)
     info_bot_token = os.getenv("INFO_BOT_TOKEN", "")
