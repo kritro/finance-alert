@@ -22,7 +22,7 @@ app = FastAPI(title="TrondInfo API", docs_url=None, redoc_url=None)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -287,6 +287,117 @@ def api_andreasnese():
                 return Response(content=f.read(), media_type="image/png",
                                 headers={"Cache-Control": "public, max-age=3600"})
     return Response(status_code=404)
+
+
+@app.get("/api/tonsberg")
+def api_tonsberg():
+    """Vær og sjøtemperatur for Tønsberg/Revetal."""
+    lines = ["🌤️ TØNSBERG / REVETAL – Akkurat nå", ""]
+
+    # Vær
+    try:
+        req = urllib.request.Request(
+            "https://www.yr.no/api/v0/locations/1-46918/forecast/currenthour",
+            headers={"User-Agent": "oil-alert-bot/1.0"},
+        )
+        data = json.loads(urllib.request.urlopen(req, timeout=10).read())
+        temp = data["temperature"]["value"]
+        feels = data["temperature"]["feelsLike"]
+        wind_speed = data["wind"]["speed"]
+        wind_gust = data["wind"]["gust"]
+        wind_dir = data["wind"]["direction"]
+        precip = data["precipitation"]["value"]
+        symbol = data.get("symbolCode", {}).get("next1Hour", "")
+
+        weather_emojis = {
+            "clearsky": "☀️", "fair": "🌤️", "partlycloudy": "⛅",
+            "cloudy": "☁️", "rain": "🌧️", "heavyrain": "🌧️🌧️",
+            "lightrain": "🌦️", "sleet": "🌨️", "snow": "❄️",
+            "heavysnow": "❄️❄️", "fog": "🌫️", "thunder": "⛈️",
+        }
+        base_symbol = symbol.replace("_day", "").replace("_night", "").replace("_polartwilight", "")
+        emoji = weather_emojis.get(base_symbol, "🌡️")
+
+        from weather import _degrees_to_direction, _wind_description
+        wind_dir_str = _degrees_to_direction(wind_dir)
+        wind_desc = _wind_description(wind_speed)
+
+        lines += [
+            f"{emoji} {temp:.1f}°C (føles som {feels}°C)",
+            f"💨 {wind_speed:.1f} m/s fra {wind_dir_str}, kast {wind_gust:.1f} m/s ({wind_desc})",
+        ]
+        if precip > 0:
+            lines.append(f"🌧️ Nedbør: {precip:.1f} mm neste time")
+        else:
+            lines.append("☂️ Opphold neste time")
+    except Exception as e:
+        lines.append(f"⚠️ Klarte ikke hente vær: {e}")
+
+    # Sjøtemperatur
+    try:
+        req = urllib.request.Request(
+            "https://www.yr.no/api/v0/locations/1-46918/nearestwatertemperatures",
+            headers={"User-Agent": "oil-alert-bot/1.0"},
+        )
+        data = json.loads(urllib.request.urlopen(req, timeout=10).read())
+        nearest = data["_embedded"]["nearestLocations"][0]
+        sea_temp = nearest["temperature"]
+        sea_name = nearest["location"]["name"]
+        lines += ["", f"🌊 Sjøtemperatur ({sea_name}): {sea_temp:.1f}°C"]
+    except Exception:
+        pass
+
+    return _json_ok("\n".join(lines))
+
+
+@app.get("/api/bardfjord")
+def api_bardfjord():
+    """Vind på Bårdfjordneset."""
+    from weather import format_wind_report
+    msg = format_wind_report()
+    if msg is None:
+        return _json_err("Klarte ikke hente vinddata.")
+    return _json_ok(msg)
+
+
+@app.get("/api/navn/{region}")
+def api_navn_region(region: str):
+    """Babynavn for en spesifikk region."""
+    from gps_commands import format_names_report
+    # Map URL-vennlige navn til riktig region
+    region_map = {
+        "oslo": "Oslo", "akershus": "Akershus", "ostfold": "Østfold",
+        "buskerud": "Buskerud", "vestfold": "Vestfold", "telemark": "Telemark",
+        "agder": "Agder", "rogaland": "Rogaland", "vestland": "Vestland",
+        "innlandet": "Innlandet", "moreogromsdal": "Møre og Romsdal",
+        "trondelag": "Trøndelag", "nordland": "Nordland", "troms": "Troms",
+        "finnmark": "Finnmark",
+    }
+    mapped = region_map.get(region.lower(), region)
+    return _json_ok(format_names_report(region=mapped))
+
+
+@app.post("/api/feature")
+async def api_feature_request(request_body: dict = None):
+    """Mottar feature requests og lagrer til fil."""
+    from fastapi import Request
+    import os
+    from pathlib import Path
+
+    text = (request_body or {}).get("text", "").strip()
+    if not text:
+        return _json_err("Tomt ønske.")
+
+    data_dir = Path(os.getenv("DATA_DIR", "./data"))
+    data_dir.mkdir(parents=True, exist_ok=True)
+    feature_file = data_dir / "feature_requests.log"
+
+    ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+    with open(feature_file, "a", encoding="utf-8") as f:
+        f.write(f"[{ts}] {text}\n")
+
+    logger.info(f"Feature request: {text[:100]}")
+    return {"ok": True}
 
 
 # ──────────────────────────────────────────────

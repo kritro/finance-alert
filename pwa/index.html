@@ -137,6 +137,26 @@ a{color:var(--accent2);text-decoration:none}
 .video-card iframe{width:100%;aspect-ratio:16/9;border:none;display:block}
 .video-card .vid-label{padding:10px 12px;font-size:13px;font-weight:600;color:var(--muted);background:var(--card)}
 
+/* Feature request box */
+.feature-box{
+  background:var(--card);border-radius:var(--radius);padding:16px;
+  border:1px solid rgba(255,255,255,.06);
+}
+.feature-box p{font-size:13px;color:var(--muted);margin-bottom:10px}
+.feature-box textarea{
+  width:100%;background:var(--bg);border:1px solid rgba(255,255,255,.1);
+  border-radius:10px;padding:12px;color:var(--text);font-size:14px;
+  font-family:inherit;resize:vertical;
+}
+.feature-box textarea:focus{outline:none;border-color:var(--accent)}
+.feature-send{
+  margin-top:10px;width:100%;padding:12px;border:none;border-radius:10px;
+  background:var(--accent);color:#fff;font-size:14px;font-weight:600;
+  cursor:pointer;font-family:inherit;
+}
+.feature-send:active{transform:scale(.98)}
+#featureStatus{font-size:13px;margin-top:8px;color:var(--green)}
+
 /* Install prompt */
 .install-bar{
   display:none;position:fixed;bottom:0;left:0;right:0;
@@ -177,9 +197,20 @@ a{color:var(--accent2);text-decoration:none}
   <div class="section-title">🌍 Generelt</div>
   <div class="grid" id="generalButtons"></div>
 
+  <div class="section-title">👶 Babynavn per fylke</div>
+  <div class="grid cols-3" id="navnButtons"></div>
+
   <div id="resultPanel" class="result">
     <button class="close-btn" onclick="closeResult()">✕</button>
     <div id="resultContent"></div>
+  </div>
+
+  <div class="section-title">💡 Ønsker &amp; tilbakemeldinger</div>
+  <div class="feature-box">
+    <p>Savner du en funksjon? Skriv hva du ønsker, så ser vi på det!</p>
+    <textarea id="featureInput" placeholder="F.eks. «Vis pollenvarsel for mitt område»" rows="3"></textarea>
+    <button class="feature-send" onclick="sendFeature()">📨 Send ønske</button>
+    <div id="featureStatus"></div>
   </div>
 </div>
 
@@ -229,11 +260,31 @@ const GPS_CMDS = [
 
 const GEN_CMDS = [
   {id:'price', icon:'🛢️', label:'Brent-pris'},
+  {id:'tonsberg', icon:'🌤️', label:'Tønsberg vær'},
+  {id:'bardfjord', icon:'💨', label:'Bårdfjord vind'},
   {id:'iss', icon:'🛰️', label:'ISS'},
   {id:'fakta', icon:'🤓', label:'Tilfeldig fakta'},
   {id:'romfart', icon:'🚀', label:'Romreise'},
   {id:'bmi', icon:'⚖️', label:'BMI-statistikk'},
   {id:'andreasnese', icon:'👃', label:'Andreas Nese'},
+];
+
+const NAVN_CMDS = [
+  {id:'navn/oslo', icon:'🏙️', label:'Oslo'},
+  {id:'navn/vestland', icon:'⛰️', label:'Vestland'},
+  {id:'navn/finnmark', icon:'❄️', label:'Finnmark'},
+  {id:'navn/trondelag', icon:'🏛️', label:'Trøndelag'},
+  {id:'navn/rogaland', icon:'🛢️', label:'Rogaland'},
+  {id:'navn/nordland', icon:'🌊', label:'Nordland'},
+  {id:'navn/troms', icon:'🏔️', label:'Troms'},
+  {id:'navn/agder', icon:'☀️', label:'Agder'},
+  {id:'navn/vestfold', icon:'⛵', label:'Vestfold'},
+  {id:'navn/innlandet', icon:'🌲', label:'Innlandet'},
+  {id:'navn/akershus', icon:'🏘️', label:'Akershus'},
+  {id:'navn/ostfold', icon:'🌾', label:'Østfold'},
+  {id:'navn/buskerud', icon:'🎿', label:'Buskerud'},
+  {id:'navn/telemark', icon:'🏞️', label:'Telemark'},
+  {id:'navn/moreogromsdal', icon:'🐟', label:'Møre og Romsdal'},
 ];
 
 // ── Build buttons ──
@@ -248,6 +299,13 @@ function buildButtons() {
   const genGrid = document.getElementById('generalButtons');
   GEN_CMDS.forEach(c => {
     genGrid.innerHTML += `<button class="btn" onclick="runCmd('${c.id}',false)">
+      <span class="icon">${c.icon}</span><span class="label">${c.label}</span>
+    </button>`;
+  });
+
+  const navnGrid = document.getElementById('navnButtons');
+  NAVN_CMDS.forEach(c => {
+    navnGrid.innerHTML += `<button class="btn" onclick="runCmd('${c.id}',false)">
       <span class="icon">${c.icon}</span><span class="label">${c.label}</span>
     </button>`;
   });
@@ -421,6 +479,30 @@ function installApp() {
     document.getElementById('installBar').style.display = 'none';
     deferredPrompt = null;
   });
+}
+
+// ── Feature request ──
+async function sendFeature() {
+  const input = document.getElementById('featureInput');
+  const status = document.getElementById('featureStatus');
+  const text = input.value.trim();
+  if (!text) { status.textContent = '⚠️ Skriv inn et ønske først.'; return; }
+  try {
+    const resp = await fetch('/api/feature', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: text})
+    });
+    const data = await resp.json();
+    if (data.ok) {
+      status.textContent = '✅ Takk! Ønsket ditt er registrert.';
+      input.value = '';
+    } else {
+      status.textContent = '⚠️ Noe gikk galt. Prøv igjen.';
+    }
+  } catch (e) {
+    status.textContent = '⚠️ Nettverksfeil.';
+  }
 }
 
 // ── Init ──
