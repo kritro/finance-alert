@@ -277,6 +277,18 @@ def api_bmi():
         return _json_err("Klarte ikke hente BMI-data.")
 
 
+@app.get("/api/andreasnese")
+def api_andreasnese():
+    """Returnerer Andreas Nese-bildet."""
+    import os
+    for path in ["/app/andreasnese.png", "andreasnese.png", "./andreasnese.png"]:
+        if os.path.exists(path):
+            with open(path, "rb") as f:
+                return Response(content=f.read(), media_type="image/png",
+                                headers={"Cache-Control": "public, max-age=3600"})
+    return Response(status_code=404)
+
+
 # ──────────────────────────────────────────────
 # Webkameraer – statiske
 # ──────────────────────────────────────────────

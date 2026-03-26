@@ -233,6 +233,7 @@ const GEN_CMDS = [
   {id:'fakta', icon:'🤓', label:'Tilfeldig fakta'},
   {id:'romfart', icon:'🚀', label:'Romreise'},
   {id:'bmi', icon:'⚖️', label:'BMI-statistikk'},
+  {id:'andreasnese', icon:'👃', label:'Andreas Nese'},
 ];
 
 // ── Build buttons ──
@@ -259,6 +260,12 @@ async function runCmd(id, needsGps) {
   panel.classList.add('show');
   content.innerHTML = '<div class="loading"></div> Henter data…';
   window.scrollTo({top: document.getElementById('resultPanel').offsetTop - 120, behavior: 'smooth'});
+
+  // Andreasnese returns an image directly
+  if (id === 'andreasnese') {
+    content.innerHTML = '<img src="/api/andreasnese" alt="Andreas Nese" style="max-width:100%;border-radius:8px">';
+    return;
+  }
 
   let url = '/api/' + id;
   if (needsGps) {
