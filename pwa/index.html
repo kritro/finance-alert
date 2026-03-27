@@ -194,7 +194,6 @@ a{color:var(--accent2);text-decoration:none}
   <div class="tab active" data-tab="info">📊 Info</div>
   <div class="tab" data-tab="cams">📷 Kamera</div>
   <div class="tab" data-tab="live">📺 Live</div>
-  <div class="tab" data-tab="skarve">⛷️ Skarverennet</div>
   <div class="tab" data-tab="feature">✉️ Be om ny</div>
 </div>
 
@@ -202,6 +201,13 @@ a{color:var(--accent2);text-decoration:none}
 <div class="content" id="tab-info">
   <div class="section-title">📍 Krever GPS</div>
   <div class="grid" id="gpsButtons"></div>
+
+  <div class="section-title">⛷️ Skarverennet</div>
+  <p style="font-size:12px;color:var(--muted);margin:-4px 0 8px">Første klikk per person kan ta 10-20 sek (eqtiming)</p>
+  <div class="grid" id="skarveButtons"></div>
+  <div id="skarveResult" style="display:none">
+    <div id="skarveContent"></div>
+  </div>
 
   <div class="section-title">🌍 Generelt</div>
   <div class="grid" id="generalButtons"></div>
@@ -212,15 +218,6 @@ a{color:var(--accent2);text-decoration:none}
   <div id="resultPanel" class="result">
     <button class="close-btn" onclick="closeResult()">✕</button>
     <div id="resultContent"></div>
-  </div>
-</div>
-
-<!-- SKARVERENNET TAB -->
-<div class="content" id="tab-skarve" style="display:none">
-  <div class="section-title">⛷️ Skarverennet – Resultater</div>
-  <div class="grid" id="skarveButtons"></div>
-  <div id="skarveResult" style="display:none">
-    <div id="skarveContent"></div>
   </div>
 </div>
 
@@ -410,7 +407,6 @@ document.getElementById('tabs').addEventListener('click', e => {
   document.getElementById('tab-' + id).style.display = '';
   if (id === 'cams') loadCams();
   if (id === 'live') loadLive();
-  if (id === 'skarve') loadSkarve();
 });
 
 // ── Webcams ──
@@ -587,6 +583,7 @@ async function sendFeature() {
 
 // ── Init ──
 buildButtons();
+loadSkarve();
 requestGPS();
 
 if ('serviceWorker' in navigator) {
