@@ -505,5 +505,117 @@ def api_webcam_image(cam_id: str):
 
 
 # ──────────────────────────────────────────────
+# Skarverennet – resultater fra eqtiming
+# ──────────────────────────────────────────────
+
+SKARVERENNET_EVENTS = {
+    2022: 58012,
+    2023: 61683,
+    2024: 67406,  # avlyst
+    2025: 72572,
+    2026: 77378,
+}
+
+SKARVERENNET_PEOPLE = {
+    "trond": {"display": "Trond", "names": [("Trond", "Kristiansen")], "yob": 1975},
+    "oyvind": {"display": "Øyvind", "names": [("Øyvind", "Kristiansen")], "yob": 1978},
+    "simen": {"display": "Simen", "names": [("Simen", "Kristiansen")], "yob": 2004},
+    "andreas": {"display": "Andreas", "names": [("Andreas", "Kristiansen")], "yob": 2008},
+    "dagny": {"display": "Dagny", "names": [("Dagny Hanne", "Kristiansen"), ("Dagny", "Dankertsen"), ("Dagny Hanne", "Dankertsen")], "yob": 1950},
+    "maria": {"display": "Maria", "names": [("Maria", "Grovann"), ("Maria", "Grovan")], "yob": 2004},
+}
+
+_skarve_cache: dict = {}
+
+
+def _skarve_find_contestant(event_id: int, person: dict) -> dict | None:
+    """Søker etter en person i eqtiming Contestants API."""
+    try:
+        url = f"https://live.eqtiming.com/api/Contestants/{event_id}"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "X-Requested-With": "XMLHttpRequest",
+        })
+        data = json.loads(urllib.request.urlopen(req, timeout=30).read())
+        for uid, v in data.items():
+            if not isinstance(v, dict):
+                continue
+            u = v.get("Utover", {})
+            for first, last in person["names"]:
+                if u.get("Fornavn") == first and u.get("Etternavn") == last:
+                    return {"uid": uid, "startnr": v.get("Startnummer")}
+    except Exception as e:
+        logger.warning(f"Skarve contestants feilet for event {event_id}: {e}")
+    return None
+
+
+def _skarve_get_time(event_id: int, contestant_uid: str) -> str | None:
+    """Henter sluttid fra eqtiming Passes API."""
+    try:
+        url = f"https://live.eqtiming.com/api/Result/Contestant/Passes/{event_id}/{contestant_uid}"
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "X-Requested-With": "XMLHttpRequest",
+        })
+        data = json.loads(urllib.request.urlopen(req, timeout=15).read())
+        best_time = None
+        for pass_group in data.values():
+            for p in pass_group.values():
+                fmt = p.get("Formatert", "")
+                if fmt and fmt != "0:00.0":
+                    best_time = fmt
+        return best_time
+    except Exception as e:
+        logger.warning(f"Skarve passes feilet for {event_id}/{contestant_uid}: {e}")
+    return None
+
+
+@app.get("/api/skarverennet")
+def api_skarverennet(person: str = Query(...)):
+    """Henter Skarverennet-resultater for en person."""
+    person_key = person.lower()
+    if person_key not in SKARVERENNET_PEOPLE:
+        return _json_err(f"Ukjent person: {person}")
+
+    # Sjekk cache
+    if person_key in _skarve_cache:
+        cached = _skarve_cache[person_key]
+        if (datetime.utcnow() - cached["fetched"]).total_seconds() < 3600:
+            return cached["data"]
+
+    p = SKARVERENNET_PEOPLE[person_key]
+    results = []
+    now = datetime.utcnow()
+
+    for year, event_id in sorted(SKARVERENNET_EVENTS.items()):
+        if year == 2024:
+            results.append({"year": year, "status": "avlyst"})
+            continue
+
+        # Ikke søk fremtidige events
+        event_date = datetime(year, 4, 25)
+        if now < event_date:
+            results.append({"year": year, "status": "kommende"})
+            continue
+
+        contestant = _skarve_find_contestant(event_id, p)
+        if not contestant:
+            results.append({"year": year, "status": "ikke_deltatt"})
+            continue
+
+        finish = _skarve_get_time(event_id, contestant["uid"])
+        results.append({
+            "year": year,
+            "status": "fullført" if finish else "startet",
+            "startnr": contestant["startnr"],
+            "tid": finish,
+        })
+
+    data = {"ok": True, "person": p["display"], "results": results}
+    _skarve_cache[person_key] = {"data": data, "fetched": now}
+    return data
+
+
+# ──────────────────────────────────────────────
 # Monter statiske filer (PWA) – gjøres fra main.py
 # ──────────────────────────────────────────────

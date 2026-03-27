@@ -138,6 +138,13 @@ a{color:var(--accent2);text-decoration:none}
 .video-card .vid-label{padding:10px 12px;font-size:13px;font-weight:600;color:var(--muted);background:var(--card)}
 
 /* Feature request box */
+.skarve-table{width:100%;border-collapse:collapse;margin-top:12px;font-size:14px}
+.skarve-table th{text-align:left;padding:8px 6px;border-bottom:2px solid var(--accent);color:var(--text)}
+.skarve-table td{padding:8px 6px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.skarve-table .avlyst{color:var(--muted);font-style:italic}
+.skarve-table .best{color:var(--green);font-weight:700}
+.skarve-person{font-size:18px;font-weight:700;margin:12px 0 4px;color:var(--text)}
+.skarve-back{font-size:13px;color:var(--accent);cursor:pointer;margin-bottom:8px;display:inline-block}
 .feature-box{
   background:var(--card);border-radius:var(--radius);padding:16px;
   border:1px solid rgba(255,255,255,.06);
@@ -187,6 +194,7 @@ a{color:var(--accent2);text-decoration:none}
   <div class="tab active" data-tab="info">📊 Info</div>
   <div class="tab" data-tab="cams">📷 Kamera</div>
   <div class="tab" data-tab="live">📺 Live</div>
+  <div class="tab" data-tab="skarve">⛷️ Skarverennet</div>
   <div class="tab" data-tab="feature">✉️ Be om ny</div>
 </div>
 
@@ -204,6 +212,15 @@ a{color:var(--accent2);text-decoration:none}
   <div id="resultPanel" class="result">
     <button class="close-btn" onclick="closeResult()">✕</button>
     <div id="resultContent"></div>
+  </div>
+</div>
+
+<!-- SKARVERENNET TAB -->
+<div class="content" id="tab-skarve" style="display:none">
+  <div class="section-title">⛷️ Skarverennet – Resultater</div>
+  <div class="grid" id="skarveButtons"></div>
+  <div id="skarveResult" style="display:none">
+    <div id="skarveContent"></div>
   </div>
 </div>
 
@@ -393,6 +410,7 @@ document.getElementById('tabs').addEventListener('click', e => {
   document.getElementById('tab-' + id).style.display = '';
   if (id === 'cams') loadCams();
   if (id === 'live') loadLive();
+  if (id === 'skarve') loadSkarve();
 });
 
 // ── Webcams ──
@@ -472,6 +490,75 @@ function installApp() {
     document.getElementById('installBar').style.display = 'none';
     deferredPrompt = null;
   });
+}
+
+// ── Skarverennet ──
+const skarvePeople = [
+  {key: 'trond', label: 'Trond'},
+  {key: 'oyvind', label: 'Øyvind'},
+  {key: 'simen', label: 'Simen'},
+  {key: 'andreas', label: 'Andreas'},
+  {key: 'dagny', label: 'Dagny'},
+  {key: 'maria', label: 'Maria'},
+];
+
+function loadSkarve() {
+  const container = document.getElementById('skarveButtons');
+  if (container.children.length > 0) return;
+  skarvePeople.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'btn';
+    btn.textContent = '⛷️ ' + p.label;
+    btn.onclick = () => fetchSkarveResults(p.key);
+    container.appendChild(btn);
+  });
+}
+
+async function fetchSkarveResults(personKey) {
+  const panel = document.getElementById('skarveResult');
+  const content = document.getElementById('skarveContent');
+  panel.style.display = '';
+  content.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted)">⏳ Henter resultater fra eqtiming…</div>';
+
+  try {
+    const resp = await fetch('/api/skarverennet?person=' + personKey);
+    const data = await resp.json();
+    if (!data.ok) { content.innerHTML = '⚠️ ' + (data.error || 'Feil'); return; }
+
+    let bestTime = null;
+    let bestYear = null;
+    data.results.forEach(r => {
+      if (r.tid) {
+        const parts = r.tid.split(':');
+        const secs = (parseInt(parts[0])||0)*3600 + (parseInt(parts[1])||0)*60 + parseFloat(parts[2]||0);
+        if (!bestTime || secs < bestTime) { bestTime = secs; bestYear = r.year; }
+      }
+    });
+
+    let html = '<span class="skarve-back" onclick="document.getElementById(\'skarveResult\').style.display=\'none\'">← Tilbake</span>';
+    html += '<div class="skarve-person">⛷️ ' + data.person + '</div>';
+    html += '<table class="skarve-table"><thead><tr><th>År</th><th>Startnr</th><th>Tid</th></tr></thead><tbody>';
+
+    data.results.forEach(r => {
+      if (r.status === 'avlyst') {
+        html += '<tr><td>' + r.year + '</td><td colspan="2" class="avlyst">Avlyst (vær)</td></tr>';
+      } else if (r.status === 'kommende') {
+        html += '<tr><td>' + r.year + '</td><td colspan="2" class="avlyst">Kommende</td></tr>';
+      } else if (r.status === 'ikke_deltatt') {
+        html += '<tr><td>' + r.year + '</td><td colspan="2" class="avlyst">Ikke deltatt</td></tr>';
+      } else {
+        const isBest = r.year === bestYear;
+        const cls = isBest ? ' class="best"' : '';
+        const tid = r.tid || (r.status === 'startet' ? 'Startet' : '–');
+        html += '<tr><td>' + r.year + '</td><td>' + (r.startnr || '') + '</td><td' + cls + '>' + tid + (isBest ? ' 🏆' : '') + '</td></tr>';
+      }
+    });
+
+    html += '</tbody></table>';
+    content.innerHTML = html;
+  } catch(e) {
+    content.innerHTML = '⚠️ Klarte ikke hente resultater.';
+  }
 }
 
 // ── Feature request ──
