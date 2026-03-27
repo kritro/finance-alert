@@ -5,6 +5,7 @@ gps_commands.py – GPS-baserte kommandoer: buss, luft, lading.
 import json
 import logging
 import math
+import urllib.parse
 import urllib.request
 from typing import Optional
 
@@ -304,55 +305,54 @@ def air_quality(lat: float, lon: float) -> str:
 
 
 def nearest_chargers(lat: float, lon: float) -> str:
-    """Finner nærmeste elbil-ladere via Open Charge Map."""
+    """Finner nærmeste elbil-ladere via OpenStreetMap Overpass API."""
+    import math
     try:
-        url = (
-            f"https://api.openchargemap.io/v3/poi?"
-            f"latitude={lat}&longitude={lon}&distance=10&distanceunit=km"
-            f"&maxresults=5&compact=true&verbose=false&countrycode=NO"
+        query = (
+            f"[out:json][timeout:15];"
+            f'node["amenity"="charging_station"](around:10000,{lat},{lon});'
+            f"out 8;"
         )
-        req = urllib.request.Request(url, headers={"User-Agent": "oil-alert-bot/1.0"})
-        data = json.loads(urllib.request.urlopen(req, timeout=8).read())
+        data = None
+        for host in ["lz4.overpass-api.de", "z.overpass-api.de", "overpass-api.de"]:
+            try:
+                url = f"https://{host}/api/interpreter?" + urllib.parse.urlencode({"data": query})
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                data = json.loads(urllib.request.urlopen(req, timeout=20).read())
+                break
+            except Exception:
+                continue
+        if data is None:
+            return "⚠️ Klarte ikke nå ladestasjon-API."
+        elements = data.get("elements", [])
 
-        if not data:
-            return "🤷 Fant ingen ladestasjoner i nærheten."
+        if not elements:
+            return "🤷 Fant ingen ladestasjoner i nærheten (10 km)."
 
-        lines = [
-            f"⚡ NÆRMESTE ELBIL-LADERE",
-            f"📍 {lat:.3f}°N, {lon:.3f}°E",
-            "",
-        ]
+        def dist_km(la, lo):
+            dlat = math.radians(la - lat)
+            dlon = math.radians(lo - lon)
+            a = math.sin(dlat/2)**2 + math.cos(math.radians(lat)) * math.cos(math.radians(la)) * math.sin(dlon/2)**2
+            return 6371 * 2 * math.asin(math.sqrt(a))
 
-        for station in data[:5]:
-            info = station.get("AddressInfo", {})
-            name = info.get("Title", "Ukjent")
-            address = info.get("AddressLine1", "")
-            dist = info.get("Distance", 0)
-            town = info.get("Town", "")
+        elements.sort(key=lambda e: dist_km(e["lat"], e["lon"]))
 
-            connections = station.get("Connections", [])
-            max_kw = 0
-            for conn in connections:
-                kw = conn.get("PowerKW") or 0
-                if kw > max_kw:
-                    max_kw = kw
+        lines = ["⚡ NÆRMESTE ELBIL-LADERE", f"📍 {lat:.3f}°N, {lon:.3f}°E", ""]
 
-            kw_str = f"{max_kw:.0f} kW" if max_kw > 0 else "?"
-
-            if max_kw >= 150:
-                emoji = "⚡⚡"
-            elif max_kw >= 50:
-                emoji = "⚡"
-            else:
-                emoji = "🔌"
-
+        for el in elements[:5]:
+            t = el.get("tags", {})
+            name = t.get("name") or t.get("operator") or "Ladestasjon"
+            capacity = t.get("capacity", "?")
+            kw_raw = t.get("maxpower") or t.get("socket:chademo:output") or t.get("socket:type2_combo:output", "")
+            kw_str = kw_raw if kw_raw else "? kW"
+            d = dist_km(el["lat"], el["lon"])
+            fast = any(t.get(k) for k in ["socket:chademo", "socket:type2_combo"])
+            emoji = "⚡⚡" if fast else "🔌"
             lines.append(f"{emoji} {name}")
-            if address:
-                lines.append(f"   {address}, {town}")
-            lines.append(f"   {dist:.1f} km – {kw_str}")
+            lines.append(f"   {d:.1f} km – {capacity} plass{'er' if capacity != '1' else ''} – {kw_str}")
             lines.append("")
 
-        lines.append("Kilde: Open Charge Map")
+        lines.append("Kilde: OpenStreetMap")
         return "\n".join(lines)
 
     except Exception as e:
