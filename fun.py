@@ -16,7 +16,12 @@ REVETAL_LON = 10.3
 
 
 def iss_status() -> str:
-    """Hvor er ISS akkurat nå, og hvor langt unna Revetal?"""
+    """Hvor er ISS akkurat nå, og hvor langt unna Revetal? (fallback uten GPS)"""
+    return iss_status_gps(REVETAL_LAT, REVETAL_LON)
+
+
+def iss_status_gps(lat: float, lon: float) -> str:
+    """Hvor er ISS akkurat nå, og hvor langt unna deg?"""
     try:
         req = urllib.request.Request(
             "https://api.wheretheiss.at/v1/satellites/25544",
@@ -28,10 +33,8 @@ def iss_status() -> str:
         alt = data["altitude"]
         speed = data["velocity"]
 
-        # Beregn avstand fra Revetal (haversine)
-        dist = _haversine(REVETAL_LAT, REVETAL_LON, iss_lat, iss_lon)
+        dist = _haversine(lat, lon, iss_lat, iss_lon)
 
-        # Finn hvilket land/område ISS er over
         if -90 < iss_lat < 90:
             over = _rough_location(iss_lat, iss_lon)
         else:
@@ -44,7 +47,7 @@ def iss_status() -> str:
             f"🌍 Over: {over}",
             f"📏 Høyde: {alt:.0f} km",
             f"⚡ Fart: {speed:.0f} km/t",
-            f"📐 Avstand fra Revetal: {dist:.0f} km",
+            f"📐 Avstand fra deg: {dist:.0f} km",
         ]
 
         if dist < 2000:
