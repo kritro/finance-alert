@@ -1,4 +1,4 @@
-const CACHE = "trondinfo-v2";
+const CACHE = "trondinfo-v3";
 const PRECACHE = ["/", "/pwa/manifest.json"];
 
 self.addEventListener("install", (e) => {
@@ -16,8 +16,8 @@ self.addEventListener("activate", (e) => {
 });
 
 self.addEventListener("fetch", (e) => {
-  // Network-first for API calls, cache-first for static assets
-  if (e.request.url.includes("/api/")) {
+  // Network-first for API calls og HTML-dokumenter
+  if (e.request.url.includes("/api/") || e.request.mode === "navigate") {
     e.respondWith(
       fetch(e.request).catch(() => caches.match(e.request))
     );
