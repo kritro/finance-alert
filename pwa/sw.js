@@ -1,4 +1,4 @@
-const CACHE = "trondinfo-v6";
+const CACHE = "trondinfo-v7";
 const PRECACHE = ["/", "/pwa/manifest.json"];
 
 self.addEventListener("install", (e) => {
