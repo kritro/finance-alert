@@ -379,8 +379,7 @@ def api_navn_region(region: str):
 
 @app.post("/api/feature")
 async def api_feature_request(request_body: dict = None):
-    """Mottar feature requests og lagrer til fil."""
-    from fastapi import Request
+    """Mottar feature requests, lagrer til fil og varsler via Telegram."""
     import os
     from pathlib import Path
 
@@ -388,13 +387,28 @@ async def api_feature_request(request_body: dict = None):
     if not text:
         return _json_err("Tomt ønske.")
 
+    # Lagre til fil
     data_dir = Path(os.getenv("DATA_DIR", "./data"))
     data_dir.mkdir(parents=True, exist_ok=True)
     feature_file = data_dir / "feature_requests.log"
-
     ts = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     with open(feature_file, "a", encoding="utf-8") as f:
         f.write(f"[{ts}] {text}\n")
+
+    # Send til Telegram via @TrondRequestBot
+    bot_token = os.getenv("REQUEST_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID")
+    if bot_token and chat_id:
+        try:
+            msg = f"💡 *Ny feature request*\n\n{text}\n\n🕐 {ts} UTC"
+            req = urllib.request.Request(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                data=json.dumps({"chat_id": chat_id, "text": msg, "parse_mode": "Markdown"}).encode(),
+                headers={"Content-Type": "application/json"},
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception as e:
+            logger.warning(f"Telegram-varsling feilet: {e}")
 
     logger.info(f"Feature request: {text[:100]}")
     return {"ok": True}
