@@ -526,6 +526,33 @@ SKARVERENNET_PEOPLE = {
 }
 
 _skarve_cache: dict = {}
+_skarve_cache_file = None
+
+
+def _skarve_load_cache() -> dict:
+    """Laster Skarverennet-cache fra persistent fil."""
+    global _skarve_cache_file
+    import os
+    from pathlib import Path
+    if _skarve_cache_file is None:
+        data_dir = Path(os.getenv("DATA_DIR", "./data"))
+        data_dir.mkdir(parents=True, exist_ok=True)
+        _skarve_cache_file = data_dir / "skarverennet_cache.json"
+    try:
+        if _skarve_cache_file.exists():
+            return json.loads(_skarve_cache_file.read_text())
+    except Exception:
+        pass
+    return {}
+
+
+def _skarve_save_cache(cache: dict):
+    """Skriver Skarverennet-cache til persistent fil."""
+    try:
+        _skarve_load_cache()  # sørg for at _skarve_cache_file er satt
+        _skarve_cache_file.write_text(json.dumps(cache, indent=2))
+    except Exception as e:
+        logger.warning(f"Skarve cache write feilet: {e}")
 
 
 def _skarve_find_contestant(event_id: int, person: dict) -> dict | None:
@@ -572,48 +599,63 @@ def _skarve_get_time(event_id: int, contestant_uid: str) -> str | None:
 
 @app.get("/api/skarverennet")
 def api_skarverennet(person: str = Query(...)):
-    """Henter Skarverennet-resultater for en person."""
+    """Henter Skarverennet-resultater for en person. Cacher i persistent fil."""
     person_key = person.lower()
     if person_key not in SKARVERENNET_PEOPLE:
         return _json_err(f"Ukjent person: {person}")
 
-    # Sjekk cache
-    if person_key in _skarve_cache:
-        cached = _skarve_cache[person_key]
-        if (datetime.utcnow() - cached["fetched"]).total_seconds() < 3600:
-            return cached["data"]
-
     p = SKARVERENNET_PEOPLE[person_key]
-    results = []
+    cache = _skarve_load_cache()
+    person_cache = cache.get(person_key, {})
     now = datetime.utcnow()
+    updated = False
 
+    results = []
     for year, event_id in sorted(SKARVERENNET_EVENTS.items()):
+        year_str = str(year)
+
         if year == 2024:
             results.append({"year": year, "status": "avlyst"})
             continue
 
-        # Ikke søk fremtidige events
+        # Allerede cachet med tid? Bruk det.
+        if year_str in person_cache and person_cache[year_str].get("tid"):
+            results.append(person_cache[year_str])
+            continue
+
+        # Cachet som ikke_deltatt? Bruk det (historisk, endres ikke).
+        if year_str in person_cache and person_cache[year_str].get("status") == "ikke_deltatt":
+            results.append(person_cache[year_str])
+            continue
+
+        # Fremtidig renn?
         event_date = datetime(year, 4, 25)
         if now < event_date:
             results.append({"year": year, "status": "kommende"})
             continue
 
+        # Ikke cachet — hent fra eqtiming
         contestant = _skarve_find_contestant(event_id, p)
         if not contestant:
-            results.append({"year": year, "status": "ikke_deltatt"})
-            continue
+            entry = {"year": year, "status": "ikke_deltatt"}
+        else:
+            finish = _skarve_get_time(event_id, contestant["uid"])
+            entry = {
+                "year": year,
+                "status": "fullført" if finish else "startet",
+                "startnr": contestant["startnr"],
+                "tid": finish,
+            }
 
-        finish = _skarve_get_time(event_id, contestant["uid"])
-        results.append({
-            "year": year,
-            "status": "fullført" if finish else "startet",
-            "startnr": contestant["startnr"],
-            "tid": finish,
-        })
+        person_cache[year_str] = entry
+        results.append(entry)
+        updated = True
 
-    data = {"ok": True, "person": p["display"], "results": results}
-    _skarve_cache[person_key] = {"data": data, "fetched": now}
-    return data
+    if updated:
+        cache[person_key] = person_cache
+        _skarve_save_cache(cache)
+
+    return {"ok": True, "person": p["display"], "results": results}
 
 
 # ──────────────────────────────────────────────
