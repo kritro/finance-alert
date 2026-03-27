@@ -35,6 +35,29 @@ Negativt filter fjerner irrelevante treff (olive oil, cooking oil, etc.)
 
 ---
 
+## PWA (mobil-app)
+
+Tilgjengelig på `finance-alert-production.up.railway.app` – legg til på hjemskjermen.
+
+### Faner
+
+| Fane | Innhold |
+|---|---|
+| 📊 Info | GPS-kommandoer, Generelt, Skarverennet, Babynavn |
+| 📷 Kamera | Webkameraer med auto-refresh |
+| 📺 Live | Port of Alta panorama (kystnor.no), Fuglekamera Ilene |
+| ✉️ Be om ny | Innsending av feature requests → @TrondRequestBot |
+
+### Skarverennet-resultater
+
+Boks under Info-fanen. Viser resultater for 6 familiemedlemmer (Trond, Øyvind, Simen, Andreas, Dagny, Maria) fra 2022 og utover. Henter data fra eqtiming API og cacher permanent i `/data/skarverennet_cache.json` — kun nye renn trigger eqtiming-kall.
+
+### Feature requests
+
+Sendes via tekstboks i PWA → `POST /api/feature` → lagres i `/data/feature_requests.log` + varsles via **@TrondRequestBot** på Telegram.
+
+---
+
 ## Info-boten (@Trondinfobot)
 
 On-demand kommandoer. GPS-kommandoer ber om posisjon via Telegram.
@@ -86,29 +109,6 @@ On-demand kommandoer. GPS-kommandoer ber om posisjon via Telegram.
 | `/romfart` | Beregnet | Reist gjennom verdensrommet i dag |
 | `/fakta` | Useless Facts + MyMemory | Tilfeldig fakta oversatt til norsk |
 | `/andreasnese` | – | 👃 |
-
----
-
-## PWA (mobil-app)
-
-Tilgjengelig på `finance-alert-production.up.railway.app` – legg til på hjemskjermen.
-
-### Faner
-
-| Fane | Innhold |
-|---|---|
-| 📊 Info | GPS-kommandoer, Generelt, Skarverennet, Babynavn |
-| 📷 Kamera | Webkameraer med auto-refresh |
-| 📺 Live | Port of Alta panorama (kystnor.no), Fuglekamera Ilene |
-| ✉️ Be om ny | Innsending av feature requests → @TrondRequestBot |
-
-### Skarverennet-resultater
-
-Boks under Info-fanen. Viser resultater for 6 familiemedlemmer (Trond, Øyvind, Simen, Andreas, Dagny, Maria) fra 2022 og utover. Henter data fra eqtiming API og cacher permanent i `/data/skarverennet_cache.json` — kun nye renn trigger eqtiming-kall.
-
-### Feature requests
-
-Sendes via tekstboks i PWA → `POST /api/feature` → lagres i `/data/feature_requests.log` + varsles via **@TrondRequestBot** på Telegram.
 
 ---
 
