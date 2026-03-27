@@ -187,6 +187,7 @@ a{color:var(--accent2);text-decoration:none}
   <div class="tab active" data-tab="info">📊 Info</div>
   <div class="tab" data-tab="cams">📷 Kamera</div>
   <div class="tab" data-tab="live">📺 Live</div>
+  <div class="tab" data-tab="feature">✉️ Be om ny</div>
 </div>
 
 <!-- INFO TAB -->
@@ -204,8 +205,11 @@ a{color:var(--accent2);text-decoration:none}
     <button class="close-btn" onclick="closeResult()">✕</button>
     <div id="resultContent"></div>
   </div>
+</div>
 
-  <div class="section-title">💡 Ønsker &amp; tilbakemeldinger</div>
+<!-- FEATURE TAB -->
+<div class="content" id="tab-feature" style="display:none">
+  <div class="section-title">💡 Be om ny funksjonalitet</div>
   <div class="feature-box">
     <p>Savner du en funksjon? Skriv hva du ønsker, så ser vi på det!</p>
     <textarea id="featureInput" placeholder="F.eks. «Vis pollenvarsel for mitt område»" rows="3"></textarea>
