@@ -19,6 +19,25 @@ logger = logging.getLogger(__name__)
 
 TELEGRAM_API = "https://api.telegram.org/bot{token}/{method}"
 
+
+def _translate_to_norwegian(text: str) -> str:
+    """Oversetter tekst fra engelsk til norsk via MyMemory API."""
+    if not text or len(text.strip()) < 5:
+        return text
+    try:
+        encoded = urllib.parse.quote(text[:500])
+        req = urllib.request.Request(
+            f"https://api.mymemory.translated.net/get?q={encoded}&langpair=en|no",
+            headers={"User-Agent": "oil-alert-bot/1.0"},
+        )
+        data = json.loads(urllib.request.urlopen(req, timeout=8).read())
+        translated = data.get("responseData", {}).get("translatedText", "")
+        if translated and "MYMEMORY" not in translated.upper():
+            return translated
+    except Exception:
+        pass
+    return text
+
 # Score-til-emoji mapping for å gi meldingen litt visuelt nivå
 def _urgency_emoji(score: int) -> str:
     if score >= 80:
@@ -56,12 +75,12 @@ def _format_message(scored: ScoredArticle) -> str:
     lines = [
         f"{emoji} OLJEPRISVARSEL",
         f"",
-        a.title,
+        _translate_to_norwegian(a.title),
         f"",
     ]
 
     if summary:
-        lines.append(summary)
+        lines.append(_translate_to_norwegian(summary))
         lines.append("")
 
     lines += [
