@@ -28,7 +28,7 @@ TELEGRAM_TOKEN: str = ""
 TELEGRAM_CHAT_ID: str = ""
 
 # Hvor ofte vi sjekker (minutter)
-POLL_INTERVAL_SECONDS: int = 30
+POLL_INTERVAL_SECONDS: int = 15
 
 # Score-terskel for varsler (0–100)
 SCORE_THRESHOLD: int = 100
